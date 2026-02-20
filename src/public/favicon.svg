@@ -1,0 +1,13 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Chat bubble icon">
+  <defs>
+    <linearGradient id="bubble" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#22d3ee" />
+      <stop offset="100%" stop-color="#2563eb" />
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="#050505" />
+  <path d="M96 34H32c-7.18 0-13 5.82-13 13v28c0 7.18 5.82 13 13 13h11v17c0 1.54 1.63 2.52 2.99 1.78L75 88h21c7.18 0 13-5.82 13-13V47c0-7.18-5.82-13-13-13Z" fill="url(#bubble)" />
+  <circle cx="52" cy="62" r="6" fill="#050505" />
+  <circle cx="74" cy="62" r="6" fill="#050505" />
+  <circle cx="96" cy="62" r="6" fill="#050505" />
+</svg>

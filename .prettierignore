@@ -1,0 +1,6 @@
+node_modules/
+dist/
+coverage/
+tmp/
+tests/fixtures/*.zip
+*.min.js

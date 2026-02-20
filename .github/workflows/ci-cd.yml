@@ -1,0 +1,171 @@
+name: CI/CD
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests (coverage)
+        run: npm run test
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    if: ${{ success() && github.ref_type == 'tag' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate tag format
+        run: npm run validate:tags -- --ref "${GITHUB_REF_NAME}"
+
+      - name: Build SPA + include importer executable
+        run: npm run dist
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-artifact
+          path: dist
+          if-no-files-found: error
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: ${{ success() && github.ref_type == 'tag' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-artifact
+          path: dist
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          (cd dist && zip -qr ../release/dist.zip .)
+          cp dist/import-dataset release/import-dataset
+          sha256sum release/dist.zip > release/checksums.txt
+          sha256sum release/import-dataset >> release/checksums.txt
+          awk '{print "- `" $2 "`: `" $1 "`"}' release/checksums.txt > release/checksums.md
+
+      - name: Generate release notes
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME:-v0.0.0}"
+          bash scripts/generate-release-notes.sh \
+            "$TAG_NAME" \
+            "${GITHUB_REPOSITORY}" \
+            release/release-notes.txt \
+            release/checksums.md
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          body_path: release/release-notes.txt
+          files: |
+            release/dist.zip
+            release/import-dataset
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy:
+    name: Deploy Pages
+    runs-on: ubuntu-latest
+    needs: [build, release]
+    if: ${{ success() && github.ref_type == 'tag' }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-artifact
+          path: dist
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  notify_failure:
+    name: Notify Failure
+    runs-on: ubuntu-latest
+    needs: [lint, test, build, release, deploy]
+    if: ${{ always() && (needs.lint.result == 'failure' || needs.test.result == 'failure' || needs.build.result == 'failure' || needs.release.result == 'failure' || needs.deploy.result == 'failure') }}
+    steps:
+      - name: Print failure summary
+        run: |
+          echo "CI/CD failure for ${{ github.repository }} @ ${{ github.ref_name }}"
+          echo "lint:    ${{ needs.lint.result }}"
+          echo "test:    ${{ needs.test.result }}"
+          echo "build:   ${{ needs.build.result }}"
+          echo "release: ${{ needs.release.result }}"
+          echo "deploy:  ${{ needs.deploy.result }}"
+
+      - name: Optional Discord notification
+        if: ${{ failure() && secrets.DISCORD_WEBHOOK_URL != '' }}
+        run: |
+          curl -fsSL -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"content\":\"🚨 CI/CD failed for ${{ github.repository }} @ ${{ github.ref_name }}\"}" \
+            "${{ secrets.DISCORD_WEBHOOK_URL }}"
