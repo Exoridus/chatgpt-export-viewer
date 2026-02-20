@@ -774,10 +774,7 @@ select {
 
     .chat-panel {
       background: $user-bubble;
-      border-top-left-radius: 1rem;
-      border-bottom-left-radius: 1rem;
-      border-top-right-radius: 0.3rem;
-      border-bottom-right-radius: 0.45rem;
+      border-radius: 1rem 0.3rem 0.45rem 1rem;
       padding: 0.72rem 0.92rem;
       border-color: rgba(59, 130, 246, 0.22);
       width: fit-content;

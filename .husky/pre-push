@@ -1,2 +1,31 @@
 #!/usr/bin/env sh
-npm run validate:tags -- --stdin
+refs_file="$(mktemp)"
+cat > "$refs_file"
+
+npm run validate:tags -- --stdin < "$refs_file" || {
+  rm -f "$refs_file"
+  exit 1
+}
+
+run_checks=false
+
+# stdin rows: <local_ref> <local_sha> <remote_ref> <remote_sha>
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    run_checks=true
+  fi
+
+  case "$remote_ref" in
+    refs/tags/v*)
+      run_checks=true
+      ;;
+  esac
+done < "$refs_file"
+
+if [ "$run_checks" = "true" ]; then
+  echo "Pre-push: running lint + tests for main/tag push..."
+  npm run lint || exit 1
+  npm run test:run || exit 1
+fi
+
+rm -f "$refs_file"
