@@ -151,7 +151,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: dist-artifact
           path: dist
@@ -202,7 +202,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Download release web artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: release-web-artifact
           path: release
