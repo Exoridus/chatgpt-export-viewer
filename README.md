@@ -1,179 +1,83 @@
+<div align="center">
+
 # ChatGPT Data Export Viewer
 
-ChatGPT Data Export Viewer is a static React + TypeScript SPA that merges an optional hosted SLIM dataset (generated into `dist/` via the native importer) with conversations imported from official ChatGPT data export ZIP files. Everything runs locally in the browser unless you explicitly publish generated files.
+[![Release](https://img.shields.io/github/v/release/Exoridus/chatgpt-export-viewer?sort=semver&display_name=release&style=for-the-badge&logo=git&logoColor=fff&label=Release&labelColor=1a1e23&color=blue)](https://github.com/Exoridus/chatgpt-export-viewer/releases/latest)
+[![Checks](https://img.shields.io/github/actions/workflow/status/Exoridus/chatgpt-export-viewer/ci-cd.yml?style=for-the-badge&label=Checks&logo=githubactions&logoColor=ffffff&labelColor=1a1e23)](https://github.com/Exoridus/chatgpt-export-viewer/actions/workflows/ci-cd.yml)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-1a1e23?style=for-the-badge&logo=github)](https://exoridus.github.io/chatgpt-export-viewer/)
+[![Sponsor](https://img.shields.io/badge/Sponsor-1a1e23?style=for-the-badge&logo=githubsponsors)](https://github.com/sponsors/Exoridus)
 
-License: **AGPL-3.0-or-later**.
+</div>
+
+## About This Project
+
+This project was developed to address the challenge of efficiently viewing and managing large ChatGPT data exports. The raw export format, while comprehensive, is often unwieldy due to its massive JSON file size and embedded assets, making it difficult to navigate and use for analysis or archiving. This SPA aims to provide a user-friendly interface that converts these exports into a more accessible, optimized, and searchable format, enhancing the usability of your chat history.
+
+## Live Demo
+
+A live, hosted version of this application is available at:
+https://exoridus.github.io/chatgpt-export-viewer/
+
+This live demo does not store your imported datasets locally. However, it fully supports importing your ChatGPT data export `.zip` files directly into the browser.
 
 ## Features
 
-- Import ChatGPT export ZIP files (drag-and-drop via file picker) and convert them to the SLIM runtime schema.
-- Merge server conversations with local IndexedDB entries; pinned conversations float to the top.
-- ChatGPT-inspired UI with virtualized sidebar, markdown rendering, hybrid code previews, optional CodeMirror viewer, assistant variants, and collapsible thinking/tool/search metadata.
-- Two-stage trigram search palette (Ctrl/Cmd + F or K) with snippets, context lines, and jump-to-hit highlighting.
-- Gallery view for generated assets, grouped by whether they still appear in a conversation.
-- Settings modal with cache toggle, server-compatible export, cleanup, and purge options (with live size estimates).
-- Markdown export per conversation, asset resolution for both server and locally cached files, and GitHub Pages deep-link fallback (`public/404.html`).
+*   **Import ChatGPT Data Exports:** Process official ChatGPT data exports (typically `.zip` archives).
+*   **View Conversations:** Browse, search, and interact with your imported conversations.
+*   **Blazing Fast Search:** Trigram-powered search palette with instant results and jump-to-hit navigation on click.
+*   **Asset Gallery:** A dedicated gallery page displaying all referenced asset files and generated outputs in a grid view, grouped by whether they still appear in a conversation.
+*   **Optimize & Convert Data:** Transform large, unwieldy JSON exports into smaller, optimized, and easily manageable conversation files.
+*   **Export Processed Data:** Export converted conversations as a `.zip` archive, ready for local extraction.
 
-## Usage
+## Getting Started
 
-### Hosted SPA (GitHub Pages)
+### Easiest Setup (For Non-Developers)
 
-The app uses `HashRouter`, so the same build works at `/` and in subdirectories (`/repo/#/conversation-id`).
+For users who want the simplest way to view their ChatGPT data locally without any build steps:
 
-- Pages URL pattern: `https://<owner>.github.io/<repo>/`
-- Example (replace placeholders): `https://your-user.github.io/ChatGPTDataExportViewer/`
-- Releases + Pages are published automatically by the workflow on pushes to `main` (or manual trigger).
+1.  **Download the release zip:** Get the latest `chatgpt-export-viewer-v*.zip` from the [GitHub Releases](https://github.com/Exoridus/chatgpt-export-viewer/releases/latest) page. This zip contains the fully pre-built SPA, including the `import-dataset` binary.
+2.  **Extract:** Unzip it to a directory of your choice — the contents will be inside a `chatgpt-export-viewer/` folder.
+3.  **Serve Locally:** For the best experience and to avoid potential issues with file loading, serve the extracted directory using a simple static web server:
+    ```bash
+    # Install if you don't have it: npm install -g serve
+    serve chatgpt-export-viewer
+    ```
+    Then navigate to the local URL provided by `serve` (e.g., `http://localhost:3000`).
 
-If you host a modified version for users over a network (SaaS/self-host for others), AGPL requires you to offer the complete corresponding source code of the deployed version to those users.
+**Using the SPA:**
+*   Once loaded, you can import your ChatGPT data export `.zip` file directly through the web interface. This import is temporary and will be lost upon page reload.
+*   While in this temporary state, the SPA displays your conversations. You can then use the built-in export function to create a new `.zip` archive containing the processed conversations. This new zip can be extracted into the `chatgpt-export-viewer/conversations/` directory for permanent local access, allowing you to view your data offline without needing to run any command-line tools.
 
-### Recommended Self-Hosting Flow (Release ZIP)
+### Advanced Setup (For Developers & Contributors)
 
-1. Open the latest GitHub release and download `dist.zip`.
-2. Extract it on your server/host filesystem.
-3. Copy one or more ChatGPT export ZIP files into that extracted folder.
-4. Run the included importer executable in that folder:
+This setup involves using source files or the `import-dataset` binary for a more flexible local development or data processing workflow.
 
-   ```bash
-   ./import-dataset
-   # optional output override:
-   ./import-dataset --out ./public ./exports/*.zip
-   ```
+**Understanding ChatGPT Exports:**
+ChatGPT data exports (e.g., `your-chatgpt-export.zip`) typically contain:
+*   Microphone recordings and uploaded/generated images.
+*   A single, very large JSON file (often 100-300+ MB) containing all conversations and metadata. This raw JSON is impractical for direct editing or efficient use.
+*   A static HTML file that embeds the same large JSON content within a header script, which is also too large and difficult to manage.
 
-5. Serve the folder as static files (`index.html`, `assets/*`, `conversations.json`, `conversations/*`, `import-dataset` optional to keep).
+**The `import-dataset` Binary:**
+This cross-platform, zero-dependency executable was developed to address the challenges of raw ChatGPT exports. It:
+*   Converts the giant `conversation.json` file into individual conversation files, each organized within its own directory.
+*   Stores associated asset files (recordings, images) alongside their respective conversations.
+*   Optimizes and converts conversations into smaller, readable, and searchable JSON objects.
 
-The executable has no Node.js runtime dependency and writes server-ready static files directly.
+You can download this binary as a standalone tool from the [GitHub Releases](https://github.com/Exoridus/chatgpt-export-viewer/releases/latest) page for direct conversion of your ChatGPT data export zip. When you build the application locally from source, this binary is also compiled and included within the `dist/` directory.
 
-<details>
-<summary>Advanced setup (clone + npm build)</summary>
+**Workflow 1: Using the `import-dataset` Binary**
 
-1. Clone this repository.
-2. Install dependencies: `npm install`
-3. Build app + copy CLI to dist: `npm run dist`
-4. Import exports into dist:
+1.  **Download Binary:** Get the `import-dataset` binary from the [GitHub Releases](https://github.com/Exoridus/chatgpt-export-viewer/releases/latest) page.
+2.  **Run Conversion:** Execute the binary from your terminal, pointing it to your export zip and a target output directory:
+    ```bash
+    ./import-dataset --out ./chatgpt-export-viewer your-export.zip
+    ```
+    This writes `conversations.json`, `conversations/<id>/`, `assets/`, and `search_index.json` directly into the target directory.
+3.  **Serve and View:** Serve the output directory with a static web server (e.g., `npx serve chatgpt-export-viewer`). Your converted conversations will be loaded automatically.
 
-   ```bash
-   npm run import -- "./*.zip"
-   npm run import -- --mode replace "./exports/**/*.zip"
-   npm run import -- --mode clone "./exports/**/*.zip"
-   ```
+**Workflow 2: Building from Source (for Contributors/Forkers)**
 
-5. Deploy `dist/` to your static host.
+If you are contributing to the project or making local modifications, you would typically build the application from source. The resulting `dist/` directory will contain the pre-built SPA, and the `import-dataset` binary will also be available within it. You can then follow the steps in Workflow 1, or utilize the SPA's built-in import/export features for data conversion.
 
-</details>
-
-### Privacy
-
-- The app never uploads your ZIP files or IndexedDB contents; everything happens in-browser.
-- Local caching is opt-in. Toggle **Cache in IndexedDB** inside Settings to allow automatic reuse; otherwise, conversations live only for the current tab session.
-- “Purge Database” wipes IndexedDB and clears the limited localStorage keys (`importsAvailable`, `cacheConversations`).
-
-### Development
-
-```bash
-npm install
-npm run dev
-```
-
-### Build
-
-```bash
-npm run build
-```
-
-Deploy `dist/` to your preferred static host.
-
-### Tests
-
-```bash
-npm run test
-```
-
-Test coverage includes:
-- Browser-side ZIP parsing (`src/lib/importer.ts`) using an anonymized export fixture.
-- Server-side dataset generation modes (`upsert`, `replace`, `clone`) via `scripts/shared/datasetImporter.ts`.
-- Frontend import modal mode selector behavior and copy.
-
-Fixture management:
-- `tests/fixtures/anonymized-export.zip` is a reduced (10 conversations), anonymized dataset derived from a real ChatGPT export ZIP.
-- Regenerate it with `npm run fixture:test-zip -- <path-to-export.zip>`. The fixture script replaces image/audio payloads with minimal test files while preserving import structure.
-
-## Server Dataset Builder
-
-Use `npm run import` to convert one or more ChatGPT export ZIP files into the static server format **inside `dist/`** (`dist/conversations.json`, `dist/conversations/<id>/conversation.json`, optional assets, and `dist/search_index.json`). By default the command glob-matches `./*.zip` from the repo root. Override the glob (directories or files) by passing positional arguments, e.g.:
-
-```bash
-npm run import -- "./chatgpt-export.zip"
-npm run import -- "./exports/**/*.zip"
-npm run import -- --mode replace "./exports/**/*.zip"
-npm run import -- --mode clone "./exports/**/*.zip"
-```
-
-Mode behavior (same wording as the import modal):
-- `Import newer and missing entries` (`--mode upsert`, default): imports newer conversations and adds conversations that do not exist yet.
-- `Import and replace all existing entries` (`--mode replace`): clears existing dataset files before importing selected archives.
-- `Import missing entries and clone when timestamps differ` (`--mode clone`): imports missing conversations and keeps both versions when timestamps differ by writing a suffixed copy ID.
-
-Run the command **after** `npm run dist` so the build artifacts remain intact.
-
-## Standalone CLI Importer
-
-- Build the native binary with `npm run build:cli`. It outputs to `dist/import-dataset`.
-- `dist/import-dataset` supports the same mode values and behavior described above (`upsert`, `replace`, `clone`).
-- Usage examples:
-
-  ```bash
-  ./dist/import-dataset                           # imports ./*.zip into ./ (current directory)
-  ./dist/import-dataset --out ./dist ./exports/*.zip
-  ./dist/import-dataset --mode clone ./exports/*.zip
-  ./dist/import-dataset --mode replace ./exports/*.zip
-  npm run import -- "./exports/**/*.zip"          # convenience wrapper that writes to dist/
-  ```
-
-- Outputs:
-  - `${out}/conversations.json`
-  - `${out}/conversations/<id>/conversation.json`
-  - `${out}/assets/...`
-  - `${out}/search_index.json`
-
-## CI/CD (Lint/Test/Build/Release/Deploy)
-
-`.github/workflows/ci-cd.yml`:
-
-- `push` + `pull_request`: always run lint and tests
-- `push` tag (`v*`): run build -> release -> deploy (GitHub Pages)
-- `workflow_dispatch`: manual run entrypoint (release/deploy still require a tag ref)
-
-Release notes are generated from gitmoji commit messages via:
-
-```bash
-bash scripts/generate-release-notes.sh <tag> <owner/repo>
-```
-
-Template:
-
-- `.github/templates/release-notes.md`
-
-Release flow:
-1. Create a valid tag (`vMAJOR.MINOR.PATCH`)
-2. Push the tag
-3. Workflow builds `dist/` (+ `dist/import-dataset`), adds SHA-256 checksums to release notes, publishes GitHub Release, then deploys the same artifact to Pages
-
-## Commit and Tag Conventions
-
-- Commits use gitmoji style: `EMOJI + space + summary`
-- Tags must use `vMAJOR.MINOR.PATCH` (for example `v1.4.0`)
-- Use `npm run commit` (or `npx gitmoji -c`) for guided commit creation
-- See `CONTRIBUTING.md` for details
-
----
-
-## Acceptance Checklist
-
-- [x] First load performs fetch-only initialization (no IndexedDB/localStorage writes until allowed).
-- [x] Sidebar import button ingests ChatGPT ZIP files, converts to SLIM JSON, and sets `importsAvailable`.
-- [x] Local/server indexes merge with latest `last_message_time` and pinned grouping; virtualized list scales to thousands.
-- [x] Search palette (Ctrl/Cmd + F or K) builds a trigram index, loads lazily, and jumps to anchored messages while auto-expanding matching code previews.
-- [x] Conversation viewer renders markdown, hybrid code previews, optional CodeMirror, assistant variants, collapsed details, and per-message anchors (`msg-<id>`).
-- [x] Settings modal exposes cache toggle, export ZIP (server-compatible), cleanup (server-wins), and purge (IndexedDB + localStorage.clear) with size estimates.
-- [x] Export Markdown button emits a `.md` snapshot with blocks, variants, and collapsed detail sections.
-- [x] GitHub Pages deep links work via `public/404.html` + runtime redirect handler.
+**Note:** The `chatgpt-export-viewer-v*.zip` file from releases is the result of the build process and is intended for users who do not need to modify or build the source code.
