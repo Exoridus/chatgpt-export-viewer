@@ -24,5 +24,15 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src", "vite.config.ts", "commitlint.config.ts", "eslint.config.ts", "stylelint.config.ts", "vitest.config.ts"]
+  "include": [
+    "src",
+    "tests",
+    "scripts/**/*.ts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "eslint.config.ts",
+    "stylelint.config.ts",
+    "commitlint.config.ts"
+  ],
+  "exclude": ["dist", "coverage", "node_modules"]
 }

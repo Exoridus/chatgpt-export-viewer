@@ -1,6 +1,6 @@
-import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+
 import { ImportModal } from '../../src/components/importer/ImportModal'
 import type { ImportProgressState } from '../../src/state/ImportExportContext'
 
@@ -15,6 +15,7 @@ const state = {
     message: 'Select ChatGPT data export ZIP files.',
   } as ImportProgressState,
   storageAvailable: true,
+  mergedIndex: [] as Array<{ id: string; title: string; pinned: boolean; pinned_time: number | null }>,
 }
 
 vi.mock('../../src/state/AppDataContext', async () => {
@@ -24,7 +25,7 @@ vi.mock('../../src/state/AppDataContext', async () => {
     useAppData: () => ({
       importZips,
       storageAvailable: state.storageAvailable,
-      mergedIndex: [],
+      mergedIndex: state.mergedIndex,
     }),
   }
 })
@@ -74,17 +75,17 @@ vi.mock('../../src/state/PreferencesContext', async () => {
 })
 
 describe('ImportModal', () => {
-  it('shows strategy select with expected option labels', () => {
-    render(<ImportModal open onClose={() => undefined} />)
+  it('hides strategy controls for first import when no conversations exist yet', () => {
+    state.mergedIndex = []
+    render(<ImportModal open onClose={() => { /* noop */ }} />)
 
-    expect(screen.getByLabelText('When importing conversations, use this strategy:')).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Upsert (Add/Update)' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Replace (Clear & Import)' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Clone (Force unique IDs)' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('When importing conversations, use this strategy:')).not.toBeInTheDocument()
+    expect(screen.getByText('Start with your first import. Strategy options appear once conversations already exist.')).toBeInTheDocument()
   })
 
-  it('updates helper description when selecting clone mode', () => {
-    render(<ImportModal open onClose={() => undefined} />)
+  it('shows strategy controls once conversations exist and updates helper text for clone mode', () => {
+    state.mergedIndex = [{ id: 'c1', title: 'Conversation 1', pinned: false, pinned_time: null }]
+    render(<ImportModal open onClose={() => { /* noop */ }} />)
 
     const select = screen.getByLabelText('When importing conversations, use this strategy:')
     fireEvent.change(select, { target: { value: 'clone' } })

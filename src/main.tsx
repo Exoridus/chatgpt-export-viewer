@@ -1,14 +1,14 @@
-import '@fontsource-variable/inter/wght.css'
+import '@fontsource-variable/inter/wght.css';
 
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import { HashRouter } from 'react-router-dom'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { HashRouter } from 'react-router-dom';
 
-import App from './App'
-import { AppDataProvider } from './state/AppDataContext'
-import { ImportExportProvider } from './state/ImportExportContext'
-import { NotificationProvider } from './state/NotificationContext'
-import { PreferencesProvider } from './state/PreferencesContext'
+import App from './App';
+import { AppDataProvider } from './state/AppDataContext';
+import { ImportExportProvider } from './state/ImportExportContext';
+import { NotificationProvider } from './state/NotificationContext';
+import { PreferencesProvider } from './state/PreferencesContext';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -23,5 +23,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         </PreferencesProvider>
       </NotificationProvider>
     </HashRouter>
-  </React.StrictMode>,
-)
+  </React.StrictMode>
+);

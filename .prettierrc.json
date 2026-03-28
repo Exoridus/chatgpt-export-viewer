@@ -1,8 +1,0 @@
-{
-  "singleQuote": true,
-  "printWidth": 140,
-  "arrowParens": "avoid",
-  "trailingComma": "es5",
-  "bracketSameLine": false,
-  "objectWrap": "preserve"
-}

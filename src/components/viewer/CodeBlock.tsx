@@ -1,21 +1,21 @@
-import clsx from 'clsx'
-import { Check, ChevronDown, Copy, WrapText } from 'lucide-react'
-import type { Language } from 'prism-react-renderer'
-import { Highlight, Prism, themes } from 'prism-react-renderer'
-import { memo, useEffect, useMemo, useState } from 'react'
+import clsx from 'clsx';
+import { Check, ChevronDown, Copy, WrapText } from 'lucide-react';
+import type { Language } from 'prism-react-renderer';
+import { Highlight, Prism, themes } from 'prism-react-renderer';
+import { type CSSProperties, memo, useEffect, useMemo, useState } from 'react';
 
-import { usePreferences } from '../../state/PreferencesContext'
-import styles from './CodeBlock.module.scss'
+import { usePreferences } from '../../state/PreferencesContext';
+import styles from './CodeBlock.module.scss';
 
 interface CodeBlockProps {
-  text: string
-  lang?: string
-  highlightLine?: number
+  text: string;
+  lang?: string;
+  highlightLine?: number;
 }
 
-const prismWindow = globalThis as typeof globalThis & { Prism?: typeof Prism }
+const prismWindow = globalThis as typeof globalThis & { Prism?: typeof Prism };
 if (!prismWindow.Prism) {
-  prismWindow.Prism = Prism
+  prismWindow.Prism = Prism;
 }
 
 const componentLoaders: Record<string, string[]> = {
@@ -41,7 +41,7 @@ const componentLoaders: Record<string, string[]> = {
   json: ['json'],
   lua: ['lua'],
   sql: ['sql'],
-}
+};
 
 const componentImporters: Record<string, () => Promise<unknown>> = {
   javascript: () => import('prismjs/components/prism-javascript.js'),
@@ -65,7 +65,7 @@ const componentImporters: Record<string, () => Promise<unknown>> = {
   json: () => import('prismjs/components/prism-json.js'),
   lua: () => import('prismjs/components/prism-lua.js'),
   sql: () => import('prismjs/components/prism-sql.js'),
-}
+};
 
 const aliasMap: Record<string, keyof typeof componentLoaders> = {
   js: 'javascript',
@@ -106,31 +106,29 @@ const aliasMap: Record<string, keyof typeof componentLoaders> = {
   sqlite: 'sql',
   txt: 'text',
   text: 'text',
-}
+};
 
-const loadedComponents = new Set<string>()
-const languageLoadTasks = new Map<string, Promise<void>>()
+const loadedComponents = new Set<string>();
+const languageLoadTasks = new Map<string, Promise<void>>();
 
 export const CodeBlock = memo(function CodeBlock({ text, lang, highlightLine }: CodeBlockProps) {
-  const { viewerPreferences, t } = usePreferences()
-  const [languageReady, setLanguageReady] = useState(false)
-  const [wrapLines, setWrapLines] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [collapsed, setCollapsed] = useState(viewerPreferences.collapseCodeBlocks)
-  const resolvedLanguage = useMemo(() => resolveLanguage(lang), [lang])
-  const lineCount = useMemo(() => text.split(/\r?\n/).length, [text])
+  const { viewerPreferences, t } = usePreferences();
+  const [languageReady, setLanguageReady] = useState(false);
+  const [wrapLines, setWrapLines] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [collapsed, setCollapsed] = useState(viewerPreferences.collapseCodeBlocks);
+  const resolvedLanguage = useMemo(() => resolveLanguage(lang), [lang]);
+  const lineCount = useMemo(() => text.split(/\r?\n/).length, [text]);
   const resolvedAppTheme = useMemo<'dark' | 'light'>(() => {
     if (viewerPreferences.appTheme === 'dark' || viewerPreferences.appTheme === 'light') {
-      return viewerPreferences.appTheme
+      return viewerPreferences.appTheme;
     }
     if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-      return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+      return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
     }
-    return 'dark'
-  }, [viewerPreferences.appTheme])
-  const effectiveThemeKey = viewerPreferences.codeThemeFollowAppTheme
-    ? (resolvedAppTheme === 'light' ? 'a11yLight' : 'a11yDark')
-    : viewerPreferences.codeTheme
+    return 'dark';
+  }, [viewerPreferences.appTheme]);
+  const effectiveThemeKey = viewerPreferences.codeThemeFollowAppTheme ? (resolvedAppTheme === 'light' ? 'a11yLight' : 'a11yDark') : viewerPreferences.codeTheme;
   const codeTheme = useMemo(() => {
     const themeMap = {
       a11yDark: themes.gruvboxMaterialDark,
@@ -147,49 +145,58 @@ export const CodeBlock = memo(function CodeBlock({ text, lang, highlightLine }: 
       duotoneLight: themes.duotoneLight,
       vsDark: themes.vsDark,
       vsLight: themes.vsLight,
-    } as const
-    return themeMap[effectiveThemeKey] ?? themes.oneDark
-  }, [effectiveThemeKey])
+    } as const;
+    return themeMap[effectiveThemeKey] ?? themes.oneDark;
+  }, [effectiveThemeKey]);
+  const themeVars = useMemo(() => {
+    const plain = codeTheme.plain ?? {};
+    return {
+      '--code-bg': plain.backgroundColor ?? 'rgba(2, 6, 23, 0.7)',
+      '--code-fg': plain.color ?? 'inherit',
+    } as CSSProperties;
+  }, [codeTheme]);
 
   useEffect(() => {
-    let cancelled = false
-    setLanguageReady(false)
-    ensureLanguageLoaded(resolvedLanguage).finally(() => {
+    let cancelled = false;
+    setLanguageReady(false);
+    void ensureLanguageLoaded(resolvedLanguage).finally(() => {
       if (!cancelled) {
-        setLanguageReady(true)
+        setLanguageReady(true);
       }
-    })
+    });
     return () => {
-      cancelled = true
-    }
-  }, [resolvedLanguage])
+      cancelled = true;
+    };
+  }, [resolvedLanguage]);
 
   useEffect(() => {
-    setCollapsed(viewerPreferences.collapseCodeBlocks)
-  }, [text, lang, viewerPreferences.collapseCodeBlocks])
+    setCollapsed(viewerPreferences.collapseCodeBlocks);
+  }, [text, lang, viewerPreferences.collapseCodeBlocks]);
 
-  const lines = useMemo(() => text.split(/\r?\n/), [text])
-  const displayText = useMemo(() => lines.join('\n'), [lines])
-  const headerLabel = lang?.trim() || resolvedLanguage
+  const lines = useMemo(() => text.split(/\r?\n/), [text]);
+  const displayText = useMemo(() => lines.join('\n'), [lines]);
+  const headerLabel = lang?.trim() || resolvedLanguage;
 
   return (
-    <div className={clsx(styles.codeBlock, wrapLines && styles.wrap)} data-code-block="true">
+    <div className={clsx(styles.codeBlock, wrapLines && styles.wrap, collapsed && styles.codeBlockCollapsed)} data-code-block="true" style={themeVars}>
       <div
         className={styles.header}
         role="button"
         tabIndex={0}
         aria-expanded={!collapsed}
-        onClick={() => setCollapsed((prev) => !prev)}
-        onKeyDown={(event) => {
+        onClick={() => setCollapsed(prev => !prev)}
+        onKeyDown={event => {
           if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault()
-            setCollapsed((prev) => !prev)
+            event.preventDefault();
+            setCollapsed(prev => !prev);
           }
         }}
       >
         <div className={styles.heading}>
           <span className={styles.lang}>{headerLabel}</span>
-          <span className={styles.lines}>{lineCount} {t.viewer.lines}</span>
+          <span className={styles.lines}>
+            {lineCount} {t.viewer.lines}
+          </span>
         </div>
         <div className={styles.toolbar}>
           <button
@@ -197,14 +204,14 @@ export const CodeBlock = memo(function CodeBlock({ text, lang, highlightLine }: 
             className={clsx('icon-button', styles.toolButton)}
             title={copied ? t.viewer.copied : t.viewer.copyCode}
             aria-label={copied ? t.viewer.copiedCodeBlock : t.viewer.copyCodeBlock}
-            onClick={async (event) => {
-              event.stopPropagation()
+            onClick={async event => {
+              event.stopPropagation();
               try {
-                await navigator.clipboard.writeText(text)
-                setCopied(true)
-                window.setTimeout(() => setCopied(false), 1200)
+                await navigator.clipboard.writeText(text);
+                setCopied(true);
+                window.setTimeout(() => setCopied(false), 1200);
               } catch {
-                setCopied(false)
+                setCopied(false);
               }
             }}
           >
@@ -215,9 +222,9 @@ export const CodeBlock = memo(function CodeBlock({ text, lang, highlightLine }: 
             className={clsx('icon-button', styles.toolButton, wrapLines && 'active')}
             title={wrapLines ? t.viewer.disableLineWrap : t.viewer.wrapLongLines}
             aria-label={wrapLines ? t.viewer.disableLineWrap : t.viewer.wrapLongLines}
-            onClick={(event) => {
-              event.stopPropagation()
-              setWrapLines((prev) => !prev)
+            onClick={event => {
+              event.stopPropagation();
+              setWrapLines(prev => !prev);
             }}
           >
             <WrapText size={13} />
@@ -234,81 +241,79 @@ export const CodeBlock = memo(function CodeBlock({ text, lang, highlightLine }: 
               {({ className, style, tokens, getLineProps, getTokenProps }) => (
                 <pre className={className} style={style}>
                   {tokens.map((line, lineIndex) => {
-                    const actualLine = lineIndex
-                    const isHit = typeof highlightLine === 'number' && actualLine === highlightLine
-                    const { key: _lineKey, ...lineProps } = getLineProps({ line, key: lineIndex })
+                    const actualLine = lineIndex;
+                    const isHit = typeof highlightLine === 'number' && actualLine === highlightLine;
+                    const { key: _lineKey, ...lineProps } = getLineProps({ line, key: lineIndex });
                     return (
-                      <div
-                        key={lineIndex}
-                        {...lineProps}
-                        className={clsx(styles.line, lineProps.className, isHit && styles.lineHit)}
-                      >
+                      <div key={lineIndex} {...lineProps} className={clsx(styles.line, lineProps.className, isHit && styles.lineHit)}>
                         <span className={styles.lineNumber}>{actualLine + 1}</span>
                         <span className={styles.lineContent}>
                           {line.length === 0 ? (
                             <span>&nbsp;</span>
                           ) : (
                             line.map((token, tokenIndex) => {
-                              const { key: _tokenKey, ...tokenProps } = getTokenProps({ token, key: tokenIndex })
-                              return <span key={tokenIndex} {...tokenProps} />
+                              const { key: _tokenKey, ...tokenProps } = getTokenProps({ token, key: tokenIndex });
+                              return <span key={tokenIndex} {...tokenProps} />;
                             })
                           )}
                         </span>
                       </div>
-                    )
+                    );
                   })}
                 </pre>
               )}
             </Highlight>
           ) : (
-            lines.map((line, idx) => {
-              const actualLine = idx
-              const isHit = typeof highlightLine === 'number' && actualLine === highlightLine
-              return (
-                <pre key={`${line}-${idx}`} className={clsx(styles.line, isHit && styles.lineHit)}>
-                  <span className={styles.lineNumber}>{actualLine + 1}</span>
-                  <code className={styles.lineContent}>{line || '\u00A0'}</code>
-                </pre>
-              )
-            })
+            <pre>
+              {lines.map((line, idx) => {
+                const actualLine = idx;
+                const isHit = typeof highlightLine === 'number' && actualLine === highlightLine;
+                return (
+                  <div key={`${line}-${idx}`} className={clsx(styles.line, isHit && styles.lineHit)}>
+                    <span className={styles.lineNumber}>{actualLine + 1}</span>
+                    <code className={styles.lineContent}>{line || '\u00A0'}</code>
+                  </div>
+                );
+              })}
+            </pre>
           )}
         </div>
       )}
     </div>
-  )
-})
+  );
+});
 
 function resolveLanguage(lang?: string): keyof typeof componentLoaders {
   if (!lang) {
-    return 'markdown'
+    return 'text';
   }
-  const key = lang.trim().toLowerCase()
-  return aliasMap[key] ?? 'text'
+  const key = lang.trim().toLowerCase();
+  return aliasMap[key] ?? 'text';
 }
 
 async function ensureLanguageLoaded(language: keyof typeof componentLoaders): Promise<void> {
-  const existingTask = languageLoadTasks.get(language)
+  const existingTask = languageLoadTasks.get(language);
   if (existingTask) {
-    return existingTask
+    return existingTask;
   }
-  const task = loadComponents(language)
-  languageLoadTasks.set(language, task)
-  await task
+  const task = loadComponents(language);
+  languageLoadTasks.set(language, task);
+  await task;
 }
 
 async function loadComponents(language: keyof typeof componentLoaders): Promise<void> {
-  const components = componentLoaders[language] ?? []
+  const components = componentLoaders[language] ?? [];
   for (const component of components) {
     if (loadedComponents.has(component)) {
-      continue
+      continue;
     }
-    const importComponent = componentImporters[component]
+    const importComponent = componentImporters[component];
     if (!importComponent) {
-      continue
+      continue;
     }
     try {
-      await importComponent()
-      loadedComponents.add(component)
+      await importComponent();
+      loadedComponents.add(component);
     } catch {
       // Ignore missing language definitions and keep plain text rendering fallback.
     }

@@ -1,6 +1,8 @@
 node_modules/
 dist/
 coverage/
+.vite/
+.cache/
 tmp/
+.idea/
 tests/fixtures/*.zip
-*.min.js

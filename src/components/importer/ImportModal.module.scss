@@ -129,9 +129,10 @@
 }
 
 .modeHelp {
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.4rem;
   color: $text-muted;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
 
   @include light-theme {
     color: rgba(21, 32, 51, 0.7);
@@ -196,6 +197,7 @@
 .success {
   align-items: center;
   text-align: center;
+  gap: 0.35rem;
 
   svg {
     color: #22c55e;
@@ -203,18 +205,19 @@
 }
 
 .successTitle {
-  font-size: 0.98rem;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: 640;
 }
 
 .successActions {
   display: flex;
-  gap: 0.6rem;
+  width: 100%;
+  justify-content: center;
+  margin-top: 0.2rem;
 }
 
-.successActions :global(.primary),
-.successActions :global(.secondary) {
-  min-width: 158px;
+.successActions :global(.primary) {
+  min-width: 180px;
 }
 
 .progressLine {
@@ -230,31 +233,16 @@
   }
 }
 
-.progressFileRow {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-}
-
 .progressFileName {
-  flex: 1;
-  min-width: 0;
   margin: 0;
-  overflow: hidden;
   color: $text-subtle;
   font-size: 0.84rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 
   @include light-theme {
     color: rgba(21, 32, 51, 0.68);
   }
-}
-
-.progressCopyButton {
-  width: 26px;
-  height: 26px;
-  border-radius: 0.45rem;
 }
 
 .progressBar {
@@ -284,14 +272,14 @@
   inset: 0;
   opacity: 0.6;
   background-image: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.18) 25%,
-    transparent 25%,
-    transparent 50%,
-    rgba(255, 255, 255, 0.18) 50%,
-    rgba(255, 255, 255, 0.18) 75%,
-    transparent 75%,
-    transparent
+      135deg,
+      rgba(255, 255, 255, 0.18) 25%,
+      transparent 25%,
+      transparent 50%,
+      rgba(255, 255, 255, 0.18) 50%,
+      rgba(255, 255, 255, 0.18) 75%,
+      transparent 75%,
+      transparent
   );
   background-size: 30px 30px;
   animation: progress-stripes 2.4s linear infinite;

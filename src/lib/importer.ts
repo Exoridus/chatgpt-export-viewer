@@ -1,9 +1,9 @@
-import { strFromU8, unzipSync } from 'fflate'
+import { strFromU8, unzipSync } from 'fflate';
 
-import type { Conversation, ConversationSummary, ExportExtraData, GeneratedAsset } from '../types'
-import type { SearchLine } from '../types/search'
-import { collectGeneratedAssets, extractExtraData } from './exportExtras'
-import { buildSearchData } from './searchBuilder'
+import type { Conversation, ConversationSummary, ExportExtraData, GeneratedAsset } from '../types';
+import type { SearchLine } from '../types/search';
+import { collectGeneratedAssets, extractExtraData } from './exportExtras';
+import { buildSearchData } from './searchBuilder';
 import {
   type AssetsIndex,
   type ComparisonPayload,
@@ -17,48 +17,68 @@ import {
   type RawConversation,
   safeJsonParse,
   shouldReplace,
-} from './slimConvert'
+} from './slimConvert';
 
 export interface ImportConversationPayload extends ComparisonPayload {
-  summary: ConversationSummary
-  conversation: Conversation
-  searchLines: SearchLine[]
-  grams: string[]
-  assetKeys: string[]
+  summary: ConversationSummary;
+  conversation: Conversation;
+  searchLines: SearchLine[];
+  grams: string[];
+  assetKeys: string[];
 }
 
 export interface ImportBundle {
-  conversations: ImportConversationPayload[]
-  assets: Map<string, Blob>
-  assetMime: Map<string, string | undefined>
-  extras: ExportExtraData
+  conversations: ImportConversationPayload[];
+  assets: Map<string, Blob>;
+  assetMime: Map<string, string | undefined>;
+  extras: ExportExtraData;
+}
+
+function buildConversationSummary(conversation: Conversation, snippet: string, mappingNodeCount: number): ConversationSummary {
+  const pinnedTime = conversation.pinned_time ?? null;
+  return {
+    id: conversation.id,
+    conversation_id: conversation.conversation_id ?? conversation.id,
+    raw_id: conversation.raw_id,
+    title: conversation.title || 'Untitled',
+    snippet,
+    last_message_time: conversation.last_message_time,
+    create_time: conversation.create_time,
+    update_time: conversation.update_time,
+    pinned_time: pinnedTime,
+    is_archived: conversation.is_archived,
+    memory_scope: conversation.memory_scope ?? null,
+    mapping_node_count: mappingNodeCount,
+    source: 'local',
+    pinned: pinnedTime !== null,
+  };
 }
 
 export interface ImportParseProgress {
-  phase: 'archive-start' | 'archive-conversations' | 'archive-assets' | 'archive-complete'
-  archiveIndex: number
-  archivesTotal: number
-  archiveName: string
-  conversationsProcessed: number
-  conversationsTotal: number
-  assetsProcessed: number
+  phase: 'archive-start' | 'archive-conversations' | 'archive-assets' | 'archive-complete';
+  archiveIndex: number;
+  archivesTotal: number;
+  archiveName: string;
+  conversationsProcessed: number;
+  conversationsTotal: number;
+  assetsProcessed: number;
 }
 
 export interface ParseExportZipsOptions {
-  onProgress?: (progress: ImportParseProgress) => void
+  onProgress?: (progress: ImportParseProgress) => void;
 }
 
 export async function parseExportZips(files: File[], options: ParseExportZipsOptions = {}): Promise<ImportBundle> {
-  const merged = new Map<string, ImportConversationPayload>()
-  const assets = new Map<string, Blob>()
-  const assetMime = new Map<string, string | undefined>()
-  const extras: ExportExtraData = {}
-  const generatedAssets = new Map<string, GeneratedAsset>()
-  const archivesTotal = files.length
-  let order = 0
+  const merged = new Map<string, ImportConversationPayload>();
+  const assets = new Map<string, Blob>();
+  const assetMime = new Map<string, string | undefined>();
+  const extras: ExportExtraData = {};
+  const generatedAssets = new Map<string, GeneratedAsset>();
+  const archivesTotal = files.length;
+  let order = 0;
 
   for (let archiveIndex = 0; archiveIndex < files.length; archiveIndex += 1) {
-    const file = files[archiveIndex]
+    const file = files[archiveIndex];
     options.onProgress?.({
       phase: 'archive-start',
       archiveIndex: archiveIndex + 1,
@@ -67,64 +87,68 @@ export async function parseExportZips(files: File[], options: ParseExportZipsOpt
       conversationsProcessed: 0,
       conversationsTotal: 0,
       assetsProcessed: 0,
-    })
-    const buffer = new Uint8Array(await file.arrayBuffer())
-    let entries: Record<string, Uint8Array>
+    });
+    const buffer = new Uint8Array(await file.arrayBuffer());
+    let entries: Record<string, Uint8Array>;
     try {
-      entries = unzipSync(buffer)
+      entries = unzipSync(buffer);
     } catch (error) {
-      console.warn(`Failed to unzip ${file.name}:`, error)
-      continue
+      console.warn(`Failed to unzip ${file.name}:`, error);
+      continue;
     }
 
-    const conversationsJsonCandidates: Uint8Array[] = []
-    const chatHtmlCandidates: Uint8Array[] = []
-    const entryMap = new Map<string, Uint8Array>()
+    const conversationsJsonCandidates: Uint8Array[] = [];
+    const chatHtmlCandidates: Uint8Array[] = [];
+    const entryMap = new Map<string, Uint8Array>();
 
     Object.entries(entries).forEach(([name, data]) => {
-      const normalized = normalizePath(name)
-      if (!normalized) {return}
-      if (normalized.includes('__MACOSX') || normalized.split('/').some((part) => part.startsWith('._'))) {
-        return
+      const normalized = normalizePath(name);
+      if (!normalized) {
+        return;
       }
-      entryMap.set(normalized, data)
-      const lower = normalized.toLowerCase()
+      if (normalized.includes('__MACOSX') || normalized.split('/').some(part => part.startsWith('._'))) {
+        return;
+      }
+      entryMap.set(normalized, data);
+      const lower = normalized.toLowerCase();
       if (lower.endsWith('conversations.json')) {
-        conversationsJsonCandidates.push(data)
+        conversationsJsonCandidates.push(data);
       } else if (lower.endsWith('chat.html')) {
-        chatHtmlCandidates.push(data)
+        chatHtmlCandidates.push(data);
       }
-    })
+    });
 
-    const extractedExtras = extractExtraData(entryMap)
-    mergeExtras(extras, extractedExtras)
+    const extractedExtras = extractExtraData(entryMap);
+    mergeExtras(extras, extractedExtras);
 
-    const rawList: RawConversation[] = []
-    const assetsJson: AssetsIndex = {}
+    const rawList: RawConversation[] = [];
+    const assetsJson: AssetsIndex = {};
 
     for (const data of chatHtmlCandidates) {
-      const html = strFromU8(data)
-      const extracted = extractConversationsFromChat(html)
+      const html = strFromU8(data);
+      const extracted = extractConversationsFromChat(html);
       if (extracted?.length) {
-        rawList.push(...extracted)
+        rawList.push(...extracted);
       }
-      Object.assign(assetsJson, extractAssetsJson(html))
+      Object.assign(assetsJson, extractAssetsJson(html));
     }
 
     if (rawList.length === 0) {
       for (const data of conversationsJsonCandidates) {
-        const json = strFromU8(data)
-        const parsed = safeJsonParse<unknown>(json, null)
-        const extracted = extractRawConversationList(parsed)
+        const json = strFromU8(data);
+        const parsed = safeJsonParse<unknown>(json, null);
+        const extracted = extractRawConversationList(parsed);
         if (extracted) {
-          rawList.push(...extracted)
+          rawList.push(...extracted);
         }
       }
     }
 
     if (!rawList.length) {
-      console.warn(`ZIP ${file.name} missing conversation data, skipping. Found ${conversationsJsonCandidates.length} JSON candidates and ${chatHtmlCandidates.length} HTML candidates.`)
-      continue
+      console.warn(
+        `ZIP ${file.name} missing conversation data, skipping. Found ${conversationsJsonCandidates.length} JSON candidates and ${chatHtmlCandidates.length} HTML candidates.`
+      );
+      continue;
     }
 
     options.onProgress?.({
@@ -135,33 +159,26 @@ export async function parseExportZips(files: File[], options: ParseExportZipsOpt
       conversationsProcessed: 0,
       conversationsTotal: rawList.length,
       assetsProcessed: 0,
-    })
+    });
 
-    const userAssets = collectGeneratedAssets(entryMap, assetsJson, extractedExtras.user?.id ?? extras.user?.id)
-    mergeGeneratedAssets(generatedAssets, userAssets)
-    ensureGeneratedAssetBlobs(userAssets, entryMap, assets, assetMime)
+    const userAssets = collectGeneratedAssets(entryMap, assetsJson, extractedExtras.user?.id ?? extras.user?.id);
+    mergeGeneratedAssets(generatedAssets, userAssets);
+    ensureGeneratedAssetBlobs(userAssets, entryMap, assets, assetMime);
 
-    let conversationsProcessed = 0
+    let conversationsProcessed = 0;
     for (const raw of rawList) {
-      const converted = convertRawConversation(raw, assetsJson)
-      if (!converted) {continue}
-      const { conversation, snippet, mappingNodeCount, assetKeys } = converted
+      const converted = convertRawConversation(raw, assetsJson);
+      if (!converted) {
+        continue;
+      }
+      const { conversation, snippet, mappingNodeCount, assetKeys } = converted;
       if (!isSafeConversationId(conversation.id)) {
-        console.warn(`Skipping conversation with unsafe id: ${conversation.id}`)
-        continue
+        console.warn(`Skipping conversation with unsafe id: ${conversation.id}`);
+        continue;
       }
 
-      const { lines, grams } = buildSearchData(conversation)
-      const summary: ConversationSummary = {
-        id: conversation.id,
-        title: conversation.title || 'Untitled',
-        snippet,
-        last_message_time: conversation.last_message_time,
-        create_time: conversation.create_time,
-        update_time: conversation.update_time,
-        mapping_node_count: mappingNodeCount,
-        source: 'local',
-      }
+      const { lines, grams } = buildSearchData(conversation);
+      const summary = buildConversationSummary(conversation, snippet, mappingNodeCount);
 
       const payload: ImportConversationPayload = {
         summary,
@@ -171,13 +188,13 @@ export async function parseExportZips(files: File[], options: ParseExportZipsOpt
         assetKeys,
         mappingNodeCount,
         importOrder: order++,
-      }
+      };
 
-      const existing = merged.get(conversation.id)
+      const existing = merged.get(conversation.id);
       if (!existing || shouldReplace(existing, payload)) {
-        merged.set(conversation.id, payload)
+        merged.set(conversation.id, payload);
       }
-      conversationsProcessed += 1
+      conversationsProcessed += 1;
       if (conversationsProcessed % 10 === 0 || conversationsProcessed === rawList.length) {
         options.onProgress?.({
           phase: 'archive-conversations',
@@ -187,30 +204,34 @@ export async function parseExportZips(files: File[], options: ParseExportZipsOpt
           conversationsProcessed,
           conversationsTotal: rawList.length,
           assetsProcessed: 0,
-        })
+        });
       }
     }
 
-    let assetsProcessed = 0
-    const currentArchiveIds = new Set(rawList.map((raw) => raw.conversation_id).filter(Boolean))
+    let assetsProcessed = 0;
+    const currentArchiveIds = new Set(rawList.map(raw => raw.conversation_id ?? raw.id).filter((id): id is string => typeof id === 'string' && id.length > 0));
     for (const payload of merged.values()) {
-      if (!currentArchiveIds.has(payload.conversation.id)) {continue}
-      payload.assetKeys.forEach((assetKey) => {
+      if (!currentArchiveIds.has(payload.conversation.id)) {
+        continue;
+      }
+      payload.assetKeys.forEach(assetKey => {
         if (!isSafeRelativePath(assetKey)) {
-          console.warn(`Skipping unsafe asset key: ${assetKey}`)
-          return
+          console.warn(`Skipping unsafe asset key: ${assetKey}`);
+          return;
         }
-        if (assets.has(assetKey)) {return}
-        const data = findAssetEntry(entryMap, assetKey)
+        if (assets.has(assetKey)) {
+          return;
+        }
+        const data = findAssetEntry(entryMap, assetKey);
         if (!data) {
-          console.warn(`Missing asset data for ${assetKey}`)
-          return
+          console.warn(`Missing asset data for ${assetKey}`);
+          return;
         }
-        const blob = new Blob([cloneToArrayBuffer(data)], { type: guessMimeByPath(assetKey) })
-        assets.set(assetKey, blob)
-        assetMime.set(assetKey, blob.type)
-        assetsProcessed += 1
-      })
+        const blob = new Blob([cloneToArrayBuffer(data)], { type: guessMimeByPath(assetKey) });
+        assets.set(assetKey, blob);
+        assetMime.set(assetKey, blob.type);
+        assetsProcessed += 1;
+      });
     }
     options.onProgress?.({
       phase: 'archive-assets',
@@ -220,7 +241,7 @@ export async function parseExportZips(files: File[], options: ParseExportZipsOpt
       conversationsProcessed,
       conversationsTotal: rawList.length,
       assetsProcessed,
-    })
+    });
     options.onProgress?.({
       phase: 'archive-complete',
       archiveIndex: archiveIndex + 1,
@@ -229,144 +250,172 @@ export async function parseExportZips(files: File[], options: ParseExportZipsOpt
       conversationsProcessed,
       conversationsTotal: rawList.length,
       assetsProcessed,
-    })
+    });
   }
 
-  extras.generatedAssets = Array.from(generatedAssets.values())
+  extras.generatedAssets = [...generatedAssets.values()];
   return {
-    conversations: Array.from(merged.values()),
+    conversations: [...merged.values()],
     assets,
     assetMime,
     extras,
-  }
+  };
 }
 
 function cloneToArrayBuffer(view: Uint8Array): ArrayBuffer {
-  const copy = new Uint8Array(view.length)
-  copy.set(view)
-  return copy.buffer
+  const copy = new Uint8Array(view.length);
+  copy.set(view);
+  return copy.buffer;
 }
 
 function mergeExtras(target: ExportExtraData, incoming: ExportExtraData): void {
-  if (incoming.user) {target.user = incoming.user}
-  if (incoming.messageFeedback) {target.messageFeedback = incoming.messageFeedback}
-  if (incoming.groupChats) {target.groupChats = incoming.groupChats}
-  if (incoming.shopping) {target.shopping = incoming.shopping}
-  if (incoming.basisPoints) {target.basisPoints = incoming.basisPoints}
-  if (incoming.sora) {target.sora = incoming.sora}
+  if (incoming.user) {
+    target.user = incoming.user;
+  }
+  if (incoming.messageFeedback) {
+    target.messageFeedback = incoming.messageFeedback;
+  }
+  if (incoming.groupChats) {
+    target.groupChats = incoming.groupChats;
+  }
+  if (incoming.shopping) {
+    target.shopping = incoming.shopping;
+  }
+  if (incoming.basisPoints) {
+    target.basisPoints = incoming.basisPoints;
+  }
+  if (incoming.sora) {
+    target.sora = incoming.sora;
+  }
 }
 
 function mergeGeneratedAssets(store: Map<string, GeneratedAsset>, incoming: GeneratedAsset[]): void {
-  incoming.forEach((asset) => {
-    const existing = store.get(asset.path)
+  incoming.forEach(asset => {
+    const existing = store.get(asset.path);
     if (existing) {
-      existing.pointers = mergePointerLists(existing.pointers, asset.pointers)
+      existing.pointers = mergePointerLists(existing.pointers, asset.pointers);
       if ((existing.size === null || existing.size === undefined) && asset.size !== null && asset.size !== undefined) {
-        existing.size = asset.size
+        existing.size = asset.size;
       }
       if (!existing.mime && asset.mime) {
-        existing.mime = asset.mime
+        existing.mime = asset.mime;
       }
-      existing.createdAt = pickEarlierTimestamp(resolveAssetCreatedTimestamp(existing), resolveAssetCreatedTimestamp(asset))
-      existing.updatedAt = pickLaterTimestamp(resolveAssetUpdatedTimestamp(existing), resolveAssetUpdatedTimestamp(asset))
-      return
+      existing.createdAt = pickEarlierTimestamp(resolveAssetCreatedTimestamp(existing), resolveAssetCreatedTimestamp(asset));
+      existing.updatedAt = pickLaterTimestamp(resolveAssetUpdatedTimestamp(existing), resolveAssetUpdatedTimestamp(asset));
+      return;
     }
     store.set(asset.path, {
       ...asset,
       createdAt: resolveAssetCreatedTimestamp(asset) ?? undefined,
       updatedAt: resolveAssetUpdatedTimestamp(asset) ?? undefined,
-    })
-  })
+    });
+  });
 }
 
 function mergePointerLists(a?: string[], b?: string[]): string[] | undefined {
-  if (!a && !b) {return undefined}
-  const set = new Set<string>()
-  a?.forEach((item) => set.add(item))
-  b?.forEach((item) => set.add(item))
-  return Array.from(set)
+  if (!a && !b) {
+    return undefined;
+  }
+  const set = new Set<string>();
+  a?.forEach(item => set.add(item));
+  b?.forEach(item => set.add(item));
+  return [...set];
 }
 
 function resolveAssetCreatedTimestamp(asset: GeneratedAsset): number | null {
-  return normalizeTimestamp(asset.createdAt ?? asset.create_time)
+  return normalizeTimestamp(asset.createdAt ?? asset.create_time);
 }
 
 function resolveAssetUpdatedTimestamp(asset: GeneratedAsset): number | null {
-  return normalizeTimestamp(asset.updatedAt ?? asset.update_time)
+  return normalizeTimestamp(asset.updatedAt ?? asset.update_time);
 }
 
 function normalizeTimestamp(value: unknown): number | null {
-  if (value === null || value === undefined) {return null}
+  if (value === null || value === undefined) {
+    return null;
+  }
   if (typeof value === 'number' && Number.isFinite(value)) {
-    return value < 10_000_000_000 ? value * 1000 : value
+    return value < 10_000_000_000 ? value * 1000 : value;
   }
   if (typeof value === 'string') {
-    const trimmed = value.trim()
-    if (!trimmed) {return null}
-    const numeric = Number(trimmed)
-    if (Number.isFinite(numeric)) {
-      return numeric < 10_000_000_000 ? numeric * 1000 : numeric
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
     }
-    const parsed = Date.parse(trimmed)
+    const numeric = Number(trimmed);
+    if (Number.isFinite(numeric)) {
+      return numeric < 10_000_000_000 ? numeric * 1000 : numeric;
+    }
+    const parsed = Date.parse(trimmed);
     if (Number.isFinite(parsed)) {
-      return parsed
+      return parsed;
     }
   }
-  return null
+  return null;
 }
 
 function pickEarlierTimestamp(a: number | null, b: number | null): number | undefined {
-  if (a === null) {return b ?? undefined}
-  if (b === null) {return a}
-  return Math.min(a, b)
+  if (a === null) {
+    return b ?? undefined;
+  }
+  if (b === null) {
+    return a;
+  }
+  return Math.min(a, b);
 }
 
 function pickLaterTimestamp(a: number | null, b: number | null): number | undefined {
-  if (a === null) {return b ?? undefined}
-  if (b === null) {return a}
-  return Math.max(a, b)
+  if (a === null) {
+    return b ?? undefined;
+  }
+  if (b === null) {
+    return a;
+  }
+  return Math.max(a, b);
 }
 
 function ensureGeneratedAssetBlobs(
   assetsList: GeneratedAsset[],
   entryMap: Map<string, Uint8Array>,
   assets: Map<string, Blob>,
-  assetMime: Map<string, string | undefined>,
+  assetMime: Map<string, string | undefined>
 ): void {
-  assetsList.forEach((asset) => {
-    if (!asset.path || assets.has(asset.path)) {return}
+  assetsList.forEach(asset => {
+    if (!asset.path || assets.has(asset.path)) {
+      return;
+    }
     if (!isSafeRelativePath(asset.path)) {
-      console.warn(`Skipping unsafe generated asset path: ${asset.path}`)
-      return
+      console.warn(`Skipping unsafe generated asset path: ${asset.path}`);
+      return;
     }
-    const data = findAssetEntry(entryMap, asset.path)
+    const data = findAssetEntry(entryMap, asset.path);
     if (!data) {
-      console.warn(`Missing generated asset payload for ${asset.path}`)
-      return
+      console.warn(`Missing generated asset payload for ${asset.path}`);
+      return;
     }
-    const blob = new Blob([cloneToArrayBuffer(data)], { type: asset.mime || guessMimeByPath(asset.path) })
-    assets.set(asset.path, blob)
-    assetMime.set(asset.path, blob.type)
-  })
+    const blob = new Blob([cloneToArrayBuffer(data)], { type: asset.mime || guessMimeByPath(asset.path) });
+    assets.set(asset.path, blob);
+    assetMime.set(asset.path, blob.type);
+  });
 }
 
 function isSafeConversationId(id: string): boolean {
-  return Boolean(id) && !id.includes('/') && !id.includes('\\') && !id.includes('\0') && !id.includes('..')
+  return Boolean(id) && !id.includes('/') && !id.includes('\\') && !id.includes('\0') && !id.includes('..');
 }
 
 function extractRawConversationList(value: unknown): RawConversation[] | null {
   if (Array.isArray(value)) {
-    return value as RawConversation[]
+    return value as RawConversation[];
   }
   if (!value || typeof value !== 'object') {
-    return null
+    return null;
   }
-  const record = value as Record<string, unknown>
+  const record = value as Record<string, unknown>;
   if (Array.isArray(record.conversations)) {
-    return record.conversations as RawConversation[]
+    return record.conversations as RawConversation[];
   }
   if (Array.isArray(record.data)) {
-    return record.data as RawConversation[]
+    return record.data as RawConversation[];
   }
-  return null
+  return null;
 }

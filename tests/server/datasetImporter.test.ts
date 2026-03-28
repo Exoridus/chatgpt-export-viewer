@@ -1,11 +1,13 @@
-import { mkdtemp, readFile, rm, writeFile, access } from 'node:fs/promises'
+import { access,mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+
 import { strToU8, zipSync } from 'fflate'
+import { describe, expect, it } from 'vitest'
+
 import { importDatasets } from '../../scripts/shared/datasetImporter'
 import type { Conversation } from '../../src/types'
-import { TEST_ZIP_PATH } from '../helpers/fixture'
+import { syntheticFixtures, writeFixtureZipFile } from '../fixtures/syntheticExports'
 
 async function withTempDir(run: (outputDir: string) => Promise<void>) {
   const outputDir = await mkdtemp(path.join(os.tmpdir(), 'viewer-import-test-'))
@@ -19,36 +21,39 @@ async function withTempDir(run: (outputDir: string) => Promise<void>) {
 describe('importDatasets', () => {
   it('writes server dataset from zip fixture', async () => {
     await withTempDir(async (outputDir) => {
-      const result = await importDatasets({ patterns: [TEST_ZIP_PATH], outputDir, mode: 'replace' })
-      expect(result.conversations).toBe(10)
-      expect(result.assets).toBeGreaterThan(0)
+      const zipPath = await writeFixtureZipFile(syntheticFixtures.normalSmall, outputDir)
+      const result = await importDatasets({ patterns: [zipPath], outputDir, mode: 'replace' })
+      expect(result.conversations).toBe(3)
+      expect(result.assets).toBe(0)
 
       const index = JSON.parse(await readFile(path.join(outputDir, 'conversations.json'), 'utf-8')) as Array<{ id: string }>
-      expect(index).toHaveLength(10)
+      expect(index).toHaveLength(3)
 
       const firstConversation = JSON.parse(
         await readFile(path.join(outputDir, 'conversations', index[0].id, 'conversation.json'), 'utf-8'),
       ) as Conversation
       expect(firstConversation.schema_version).toBe(1)
-      expect(firstConversation.messages.length).toBeGreaterThan(2)
+      expect(firstConversation.messages.length).toBeGreaterThanOrEqual(2)
     })
   })
 
   it('upsert mode is idempotent for identical input', async () => {
     await withTempDir(async (outputDir) => {
-      const initial = await importDatasets({ patterns: [TEST_ZIP_PATH], outputDir, mode: 'replace' })
-      const second = await importDatasets({ patterns: [TEST_ZIP_PATH], outputDir, mode: 'upsert' })
+      const zipPath = await writeFixtureZipFile(syntheticFixtures.normalSmall, outputDir)
+      const initial = await importDatasets({ patterns: [zipPath], outputDir, mode: 'replace' })
+      const second = await importDatasets({ patterns: [zipPath], outputDir, mode: 'upsert' })
 
-      expect(initial.conversations).toBe(10)
-      expect(second.conversations).toBe(10)
+      expect(initial.conversations).toBe(3)
+      expect(second.conversations).toBe(3)
     })
   }, 30_000)
 
   it('clone mode appends suffixed conversation IDs', async () => {
     await withTempDir(async (outputDir) => {
-      await importDatasets({ patterns: [TEST_ZIP_PATH], outputDir, mode: 'replace' })
-      const cloned = await importDatasets({ patterns: [TEST_ZIP_PATH], outputDir, mode: 'clone' })
-      expect(cloned.conversations).toBe(20)
+      const zipPath = await writeFixtureZipFile(syntheticFixtures.normalSmall, outputDir)
+      await importDatasets({ patterns: [zipPath], outputDir, mode: 'replace' })
+      const cloned = await importDatasets({ patterns: [zipPath], outputDir, mode: 'clone' })
+      expect(cloned.conversations).toBe(6)
 
       const summaries = JSON.parse(
         await readFile(path.join(outputDir, 'conversations.json'), 'utf-8'),

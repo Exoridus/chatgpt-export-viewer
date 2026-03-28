@@ -1,6 +1,7 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
 import { execSync } from 'node:child_process'
+
+import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
 
 const FALLBACK_REPO_URL = 'https://github.com/Exoridus/ChatGPTDataExportViewer'
 
@@ -50,7 +51,7 @@ export default defineConfig({
         manualChunks(id) {
           const normalized = id.replace(/\\/g, '/')
           if (!normalized.includes('/node_modules/')) {
-            return undefined
+            return
           }
           if (
             normalized.includes('/node_modules/react/') ||
@@ -68,7 +69,7 @@ export default defineConfig({
           if (normalized.includes('/node_modules/idb/')) {
             return 'vendor-storage'
           }
-          return undefined
+          
         },
       },
     },

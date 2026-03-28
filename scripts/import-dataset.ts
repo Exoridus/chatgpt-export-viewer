@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import path from 'node:path'
-import { importDatasets, type DatasetImportMode } from './shared/datasetImporter'
+
+import { type DatasetImportMode,importDatasets } from './shared/datasetImporter'
 
 interface CliOptions {
   outputDir: string
@@ -36,7 +37,7 @@ async function main() {
     if (error instanceof Error) {
       console.error(`${strings.error} ${error.message}`)
     } else {
-      console.error(`${strings.unexpectedError} ${error}`)
+      console.error(`${strings.unexpectedError} ${String(error)}`)
     }
   } finally {
     if (process.platform === 'win32' && process.stdin.isTTY) {

@@ -12,19 +12,20 @@
 
 .card {
   display: flex;
-  min-height: 230px;
+  min-height: 216px;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.34rem;
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 1rem;
   background: $panel-soft;
-  padding: 0.7rem;
+  padding: 0.56rem;
   content-visibility: auto;
-  contain-intrinsic-size: 1px 230px;
+  contain-intrinsic-size: 1px 216px;
 
   @include light-theme {
-    border-color: rgba(21, 32, 51, 0.08);
-    background: rgba(21, 32, 51, 0.02);
+    border-color: rgba(21, 32, 51, 0.12);
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   }
 }
 
@@ -52,12 +53,20 @@
 
 .cardPreview {
   display: flex;
-  min-height: 170px;
+  min-height: 146px;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  border: 1px solid transparent;
   border-radius: 0.75rem;
   background: rgba(255, 255, 255, 0.02);
+  padding: 0;
+
+  :global(button) {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+  }
 
   img,
   video {
@@ -65,11 +74,15 @@
     height: 100%;
     object-fit: cover;
   }
+
+  @include light-theme {
+    background: rgba(21, 32, 51, 0.04);
+  }
 }
 
 .cardFooter {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  padding-top: 0.45rem;
+  padding-top: 0.36rem;
 
   @include light-theme {
     border-top-color: rgba(21, 32, 51, 0.08);
@@ -87,12 +100,58 @@
   white-space: nowrap;
 }
 
+.cardBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.24rem;
+  margin-top: 0.2rem;
+}
+
+.cardBadge,
+.cardBadgeMuted {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0.35rem;
+  font-size: 0.67rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0.18rem 0.34rem;
+}
+
+.cardBadge {
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(226, 232, 240, 0.88);
+
+  @include light-theme {
+    border-color: rgba(21, 32, 51, 0.14);
+    background: rgba(21, 32, 51, 0.06);
+    color: rgba(21, 32, 51, 0.74);
+  }
+}
+
+.cardBadgeMuted {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(148, 163, 184, 0.1);
+  color: $text-subtle;
+
+  @include light-theme {
+    border-color: rgba(21, 32, 51, 0.12);
+    background: rgba(21, 32, 51, 0.04);
+    color: rgba(21, 32, 51, 0.66);
+  }
+}
+
 .cardMeta {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
+}
+
+.cardMetaMissing {
+  opacity: 0.72;
 }
 
 .cardTime {
@@ -117,19 +176,70 @@
 
 .filePreview {
   display: flex;
-  min-height: 170px;
+  min-height: 146px;
   width: 100%;
   align-items: center;
   justify-content: center;
-  border: 1px dashed rgba(255, 255, 255, 0.14);
+  gap: 0.3rem;
   border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.03);
   color: rgba(255, 255, 255, 0.78);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 
   @include light-theme {
-    border-color: rgba(21, 32, 51, 0.14);
+    background: rgba(21, 32, 51, 0.04);
     color: rgba(21, 32, 51, 0.7);
+  }
+}
+
+.textPreview {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 146px;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(2, 6, 23, 0.42);
+  padding: 0.58rem 0.62rem;
+  gap: 0.5rem;
+
+  @include light-theme {
+    border-color: rgba(21, 32, 51, 0.12);
+    background: rgba(21, 32, 51, 0.04);
+  }
+}
+
+.textPreviewHead {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: $text-subtle;
+  font-size: 0.73rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.textPreviewLines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.26rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.38;
+
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: rgba(226, 232, 240, 0.74);
+  }
+
+  @include light-theme {
+    span {
+      color: rgba(21, 32, 51, 0.68);
+    }
   }
 }

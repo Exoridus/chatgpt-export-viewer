@@ -1,20 +1,21 @@
-import { describe, expect, it } from 'vitest'
 import { strToU8, zipSync } from 'fflate'
+import { describe, expect, it } from 'vitest'
+
 import { parseExportZips } from '../../src/lib/importer'
-import { createTestZipFile } from '../helpers/fixture'
+import { createFixtureZipFile, syntheticFixtures } from '../fixtures/syntheticExports'
 
 describe('parseExportZips', () => {
-  it('imports conversations/assets from anonymized export fixture', async () => {
-    const zipFile = await createTestZipFile()
+  it('imports conversations/assets from synthetic normal fixture', async () => {
+    const zipFile = createFixtureZipFile(syntheticFixtures.normalSmall)
     const result = await parseExportZips([zipFile])
 
-    expect(result.conversations.length).toBe(10)
-    expect(result.assets.size).toBeGreaterThan(0)
-    expect(result.assetMime.size).toBe(result.assets.size)
+    expect(result.conversations.length).toBe(3)
+    expect(result.assets.size).toBe(0)
+    expect(result.assetMime.size).toBe(0)
 
     const first = result.conversations[0]
     expect(first.conversation.schema_version).toBe(1)
-    expect(first.conversation.messages.length).toBeGreaterThan(2)
+    expect(first.conversation.messages.length).toBeGreaterThanOrEqual(2)
     expect(first.summary.title.length).toBeGreaterThan(0)
   })
 
@@ -47,7 +48,7 @@ describe('parseExportZips', () => {
       'chat.html': strToU8(chatHtml),
       '../escape.png': new Uint8Array([1, 2, 3]),
     })
-    const zipFile = new File([zipBytes], 'unsafe.zip', { type: 'application/zip' })
+    const zipFile = new File([zipBytes as BlobPart], 'unsafe.zip', { type: 'application/zip' })
     const result = await parseExportZips([zipFile])
 
     expect(result.conversations).toHaveLength(1)
@@ -89,7 +90,7 @@ describe('parseExportZips', () => {
       'chat.html': strToU8(chatHtml),
       'assets/example.png': new Uint8Array([1, 2, 3, 4]),
     })
-    const zipFile = new File([zipBytes], 'js-assets.zip', { type: 'application/zip' })
+    const zipFile = new File([zipBytes as BlobPart], 'js-assets.zip', { type: 'application/zip' })
     const result = await parseExportZips([zipFile])
 
     expect(result.conversations).toHaveLength(1)
@@ -125,7 +126,7 @@ describe('parseExportZips', () => {
       'chat.html': strToU8(chatHtml),
       'assets/encoded.png': new Uint8Array([9, 8, 7, 6]),
     })
-    const zipFile = new File([zipBytes], 'encoded-assets.zip', { type: 'application/zip' })
+    const zipFile = new File([zipBytes as BlobPart], 'encoded-assets.zip', { type: 'application/zip' })
     const result = await parseExportZips([zipFile])
 
     expect(result.conversations).toHaveLength(1)

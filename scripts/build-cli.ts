@@ -1,10 +1,11 @@
-import { build } from 'esbuild'
-import { mkdir, rm, chmod } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { chmod,mkdir, rm } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
-import { execFile } from 'node:child_process'
-import { createRequire } from 'node:module'
+
+import { build } from 'esbuild'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const tmpDir = path.join(root, 'node_modules', '.cache', 'import-dataset')
@@ -29,8 +30,8 @@ await build({
   plugins: [
     {
       name: 'cli-alias',
-      setup(build) {
-        build.onResolve({ filter: /^fflate$/ }, (args) => {
+      setup(pluginBuild) {
+        pluginBuild.onResolve({ filter: /^fflate$/ }, (args) => {
           const resolved = aliasEntries.get(args.path)
           if (resolved) {
             return { path: resolved }

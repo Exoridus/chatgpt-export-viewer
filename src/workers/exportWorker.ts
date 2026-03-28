@@ -1,34 +1,34 @@
 /// <reference lib="webworker" />
 
-import { exportFullWorkingZipFromDatabase, type ExportProgressState } from '../lib/exporter'
+import { exportFullWorkingZipFromDatabase, type ExportProgressState } from '../lib/exporter';
 
 interface ExportRequestMessage {
-  type: 'export'
+  type: 'export';
 }
 
 interface ExportProgressMessage {
-  type: 'progress'
-  progress: ExportProgressState
+  type: 'progress';
+  progress: ExportProgressState;
 }
 
 interface ExportDoneMessage {
-  type: 'done'
-  blob: Blob
+  type: 'done';
+  blob: Blob;
 }
 
 interface ExportErrorMessage {
-  type: 'error'
-  error: string
+  type: 'error';
+  error: string;
 }
 
-type WorkerRequestMessage = ExportRequestMessage
-type WorkerResponseMessage = ExportProgressMessage | ExportDoneMessage | ExportErrorMessage
+type WorkerRequestMessage = ExportRequestMessage;
+type WorkerResponseMessage = ExportProgressMessage | ExportDoneMessage | ExportErrorMessage;
 
-const worker = self as DedicatedWorkerGlobalScope
+const worker = self as DedicatedWorkerGlobalScope;
 
 worker.onmessage = async (event: MessageEvent<WorkerRequestMessage>) => {
   if (event.data.type !== 'export') {
-    return
+    return;
   }
   try {
     const blob = await exportFullWorkingZipFromDatabase({
@@ -36,22 +36,22 @@ worker.onmessage = async (event: MessageEvent<WorkerRequestMessage>) => {
         const response: ExportProgressMessage = {
           type: 'progress',
           progress,
-        }
-        worker.postMessage(response)
+        };
+        worker.postMessage(response);
       },
-    })
+    });
     const done: ExportDoneMessage = {
       type: 'done',
       blob,
-    }
-    worker.postMessage(done)
+    };
+    worker.postMessage(done);
   } catch (error) {
     const response: ExportErrorMessage = {
       type: 'error',
       error: error instanceof Error ? error.message : String(error),
-    }
-    worker.postMessage(response)
+    };
+    worker.postMessage(response);
   }
-}
+};
 
-export type { WorkerRequestMessage, WorkerResponseMessage }
+export type { WorkerRequestMessage, WorkerResponseMessage };

@@ -1,1 +1,1 @@
-export * from '../../scripts/shared/slimConvert'
+export * from '../../scripts/shared/slimConvert';

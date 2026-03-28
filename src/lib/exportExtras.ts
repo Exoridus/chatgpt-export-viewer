@@ -1,1 +1,1 @@
-export * from '../../scripts/shared/exportExtras'
+export * from '../../scripts/shared/exportExtras';

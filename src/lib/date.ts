@@ -1,29 +1,41 @@
-const formatter = new Intl.DateTimeFormat(undefined, {
+const dateFormatter = new Intl.DateTimeFormat(undefined, {
   month: 'short',
   day: 'numeric',
   year: 'numeric',
-})
+});
 
-const timeFormatter = new Intl.DateTimeFormat(undefined, {
-  hour: 'numeric',
-  minute: '2-digit',
-})
+const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+});
 
 export function formatConversationDate(ts?: number | null): string {
-  if (!ts) {return 'Unknown'}
+  const normalized = normalizeTimestamp(ts);
+  if (!normalized) {
+    return '';
+  }
   try {
-    const date = new Date(ts)
-    return `${formatter.format(date)} · ${timeFormatter.format(date)}`
+    return dateTimeFormatter.format(new Date(normalized));
   } catch {
-    return 'Unknown'
+    return '';
   }
 }
 
 export function formatShortDate(ts?: number | null): string {
-  if (!ts) {return ''}
-  try {
-    return formatter.format(new Date(ts))
-  } catch {
-    return ''
+  const normalized = normalizeTimestamp(ts);
+  if (!normalized) {
+    return '';
   }
+  try {
+    return dateFormatter.format(new Date(normalized));
+  } catch {
+    return '';
+  }
+}
+
+function normalizeTimestamp(ts?: number | null): number | null {
+  if (!ts || !Number.isFinite(ts)) {
+    return null;
+  }
+  return ts > 10_000_000_000 ? ts : ts * 1000;
 }

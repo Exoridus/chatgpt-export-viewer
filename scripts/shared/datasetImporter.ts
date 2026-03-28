@@ -1,23 +1,25 @@
 import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { unzipSync, strFromU8 } from 'fflate'
-import type { ConversationSummary, Conversation, ExportExtraData, GeneratedAsset } from '../../src/types'
-import type { SearchBundle, SearchLine } from '../../src/types/search'
+
+import { strFromU8,unzipSync } from 'fflate'
+
 import { buildSearchData } from '../../src/lib/searchBuilder'
+import type { Conversation, ConversationSummary, ExportExtraData, GeneratedAsset } from '../../src/types'
+import type { SearchBundle, SearchLine } from '../../src/types/search'
+import { collectGeneratedAssets,extractExtraData } from './exportExtras'
 import {
+  type AssetsIndex,
+  type ComparisonPayload,
   convertRawConversation,
   extractAssetsJson,
   extractConversationsFromChat,
   findAssetEntry,
   isSafeRelativePath,
   normalizePath,
+  type RawConversation,
   safeJsonParse,
   shouldReplace,
-  type AssetsIndex,
-  type ComparisonPayload,
-  type RawConversation,
 } from './slimConvert'
-import { extractExtraData, collectGeneratedAssets } from './exportExtras'
 
 export type DatasetImportMode = 'upsert' | 'replace' | 'clone'
 
@@ -49,6 +51,66 @@ interface ServerConversationPayload extends ComparisonPayload {
   searchLines: SearchLine[]
   grams: string[]
   assetKeys: string[]
+}
+
+function buildConversationSummary(
+  conversation: Conversation,
+  snippet: string,
+  mappingNodeCount: number,
+  source: ConversationSummary['source'],
+): ConversationSummary {
+  const pinnedTime = conversation.pinned_time ?? null
+  return {
+    id: conversation.id,
+    conversation_id: conversation.conversation_id ?? conversation.id,
+    raw_id: conversation.raw_id,
+    title: conversation.title || 'Untitled',
+    snippet,
+    last_message_time: conversation.last_message_time,
+    create_time: conversation.create_time,
+    update_time: conversation.update_time,
+    pinned_time: pinnedTime,
+    is_archived: conversation.is_archived,
+    memory_scope: conversation.memory_scope ?? null,
+    mapping_node_count: mappingNodeCount,
+    source,
+    pinned: pinnedTime !== null,
+  }
+}
+
+function normalizeStoredSummary(summary: ConversationSummary, conversation: Conversation): ConversationSummary {
+  const pinnedTime = conversation.pinned_time ?? null
+  return {
+    id: conversation.id,
+    conversation_id: conversation.conversation_id ?? conversation.id,
+    raw_id: conversation.raw_id,
+    title: conversation.title || 'Untitled',
+    snippet: buildConversationSnippet(conversation),
+    last_message_time: conversation.last_message_time,
+    create_time: conversation.create_time,
+    update_time: conversation.update_time,
+    pinned_time: pinnedTime,
+    is_archived: conversation.is_archived,
+    memory_scope: conversation.memory_scope ?? null,
+    mapping_node_count: conversation.mapping_node_count,
+    saved_at: summary.saved_at,
+    source: 'server',
+    pinned: pinnedTime !== null,
+  }
+}
+
+function buildConversationSnippet(conversation: Conversation): string {
+  for (const message of conversation.messages) {
+    if (message.role !== 'user') {continue}
+    for (const block of message.blocks) {
+      if (block.type !== 'markdown') {continue}
+      const normalized = block.text.replace(/\s+/g, ' ').trim()
+      if (normalized) {
+        return normalized.slice(0, 120)
+      }
+    }
+  }
+  return ''
 }
 
 const DEFAULT_GLOB = './*.zip'
@@ -112,17 +174,7 @@ export async function importDatasets(options: DatasetImportOptions): Promise<Dat
         continue
       }
       const { lines, grams } = buildSearchData(conversation)
-      const summary: ConversationSummary = {
-        id: conversation.id,
-        title: conversation.title || 'Untitled',
-        snippet,
-        last_message_time: conversation.last_message_time,
-        create_time: conversation.create_time,
-        update_time: conversation.update_time,
-        mapping_node_count: mappingNodeCount,
-        source: 'server',
-        pinned: false,
-      }
+      const summary = buildConversationSummary(conversation, snippet, mappingNodeCount, 'server')
       let payload: ServerConversationPayload = {
         summary,
         conversation,
@@ -475,21 +527,22 @@ async function loadExistingDataset(outputDir: string) {
     const conversationPath = path.join(outputDir, 'conversations', summary.id, 'conversation.json')
     const conversation = await readJsonFile<Conversation>(conversationPath)
     if (!conversation) continue
+    const normalizedSummary = normalizeStoredSummary(summary, conversation)
     const assetKeys = Array.from(new Set(Object.values(conversation.assetsMap ?? {}))).filter(
       (key): key is string => typeof key === 'string' && key.length > 0,
     )
-    payloads.set(summary.id, {
-      summary,
+    payloads.set(normalizedSummary.id, {
+      summary: normalizedSummary,
       conversation,
-      searchLines: linesByConversation[summary.id] ?? [],
-      grams: gramsByConversation.get(summary.id) ?? [],
+      searchLines: linesByConversation[normalizedSummary.id] ?? [],
+      grams: gramsByConversation.get(normalizedSummary.id) ?? [],
       assetKeys,
-      mappingNodeCount: summary.mapping_node_count ?? 0,
+      mappingNodeCount: normalizedSummary.mapping_node_count ?? 0,
       importOrder: 0,
     })
   }
   for (const [key, fileName] of EXTRA_FILE_ENTRIES) {
-    const value = await readJsonFile(path.join(outputDir, fileName))
+    const value = await readJsonFile<NonNullable<ExportExtraData[typeof key]>>(path.join(outputDir, fileName))
     if (value !== undefined) {
       setExtraValue(extras, key, value)
     }
@@ -514,7 +567,7 @@ function mergeGeneratedAssets(store: Map<string, GeneratedAsset>, incoming: Gene
     const existing = store.get(asset.path)
     if (existing) {
       existing.pointers = mergePointerLists(existing.pointers, asset.pointers)
-      if (existing.size == null && asset.size != null) existing.size = asset.size
+      if ((existing.size === null || existing.size === undefined) && asset.size !== null && asset.size !== undefined) existing.size = asset.size
       if (!existing.mime && asset.mime) existing.mime = asset.mime
     } else {
       store.set(asset.path, { ...asset })

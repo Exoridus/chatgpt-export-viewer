@@ -1,18 +1,20 @@
+import { linesFromText, sanitizeRenderedMarkdown } from '../../src/lib/text'
 import type {
-  ConversationSummary,
+  AssetIndex,
   Block,
   Conversation,
+  ConversationMeta,
+  ConversationSummary,
   Details,
-  Message,
-  AssetIndex,
   GraphConversation,
-  GraphNode,
   GraphMessage,
   GraphMessageContent,
   GraphMultimodalContentPart,
+  GraphNode,
   GraphThoughtFragment,
+  Message,
+  MessageMeta,
 } from '../../src/types'
-import { linesFromText, sanitizeRenderedMarkdown } from '../../src/lib/text'
 
 export type RawConversation = GraphConversation
 type RawNode = GraphNode
@@ -39,7 +41,7 @@ export interface SlimConversionResult {
 }
 
 export interface ComparisonPayload {
-  summary: Pick<ConversationSummary, 'last_message_time'>
+  summary: Pick<ConversationSummary, 'last_message_time' | 'pinned_time'>
   mappingNodeCount?: number
   importOrder: number
 }
@@ -52,14 +54,60 @@ function getString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined
 }
 
+function getBoolean(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined
+}
+
+function getNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) {return undefined}
+    const parsed = Number(trimmed)
+    if (Number.isFinite(parsed)) {
+      return parsed
+    }
+  }
+  return undefined
+}
+
 function getNestedString(record: JsonRecord, key: string, nestedKey: string): string | undefined {
   const nested = toRecord(record[key])
   return nested ? getString(nested[nestedKey]) : undefined
 }
 
+function normalizeTimestampMs(value: unknown): number | undefined {
+  const parsed = getNumber(value)
+  if (parsed === undefined) {return undefined}
+  return parsed > 10_000_000_000 ? parsed : parsed * 1000
+}
+
+function normalizeNullableTimestampMs(value: unknown): number | null | undefined {
+  if (value === null) {return null}
+  if (value === undefined) {return undefined}
+  return normalizeTimestampMs(value)
+}
+
+export function dedupeTrimmedStrings(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {return undefined}
+  const output: string[] = []
+  const seen = new Set<string>()
+  value.forEach((entry) => {
+    if (typeof entry !== 'string') {return}
+    const trimmed = entry.trim()
+    if (!trimmed || seen.has(trimmed)) {return}
+    seen.add(trimmed)
+    output.push(trimmed)
+  })
+  return output.length ? output : undefined
+}
+
 export function convertRawConversation(raw: RawConversation, assetsJson: AssetsIndex): SlimConversionResult | null {
   if (!raw.mapping || !raw.current_node) return null
   const nodes = raw.mapping
+  const mappingNodeCount = Object.keys(raw.mapping ?? {}).length
   const path: RawNode[] = []
   const visited = new Set<string>()
   let cursor: RawNode | undefined = nodes[raw.current_node]
@@ -89,12 +137,25 @@ export function convertRawConversation(raw: RawConversation, assetsJson: AssetsI
     messages.push(msg)
   }
   if (!messages.length) return null
+  const resolvedConversationId = raw.conversation_id ?? raw.id ?? messages[0].id
+  const safeUrls = dedupeTrimmedStrings(raw.safe_urls)
+  const rawId = typeof raw.id === 'string' && raw.id !== resolvedConversationId ? raw.id : undefined
+  const conversationMeta = extractConversationMeta(raw)
   const conversation: Conversation = {
     schema_version: 1,
-    id: raw.conversation_id ?? messages[0].id,
+    id: resolvedConversationId,
+    conversation_id: raw.conversation_id ?? resolvedConversationId,
+    raw_id: rawId,
     title: raw.title || buildTitleFromMessages(messages),
+    current_node: raw.current_node,
     create_time: normalizeOptionalMs(raw.create_time),
     update_time: normalizeOptionalMs(raw.update_time),
+    pinned_time: normalizeNullableTimestampMs(raw.pinned_time),
+    is_archived: getBoolean(raw.is_archived),
+    memory_scope: getString(raw.memory_scope),
+    safe_urls: safeUrls,
+    mapping_node_count: mappingNodeCount,
+    meta: conversationMeta,
     last_message_time: normalizeMs(lastMessageTs),
     assetsMap: Object.keys(assetsMap).length ? assetsMap : undefined,
     messages,
@@ -103,7 +164,7 @@ export function convertRawConversation(raw: RawConversation, assetsJson: AssetsI
   return {
     conversation,
     snippet,
-    mappingNodeCount: Object.keys(raw.mapping ?? {}).length,
+    mappingNodeCount,
     assetKeys,
   }
 }
@@ -111,6 +172,11 @@ export function convertRawConversation(raw: RawConversation, assetsJson: AssetsI
 export function shouldReplace(current: ComparisonPayload, incoming: ComparisonPayload): boolean {
   if (incoming.summary.last_message_time > current.summary.last_message_time) return true
   if (incoming.summary.last_message_time < current.summary.last_message_time) return false
+  const currentPinnedTime = current.summary.pinned_time ?? null
+  const incomingPinnedTime = incoming.summary.pinned_time ?? null
+  if (incomingPinnedTime !== currentPinnedTime) {
+    return incoming.importOrder > current.importOrder
+  }
   if ((incoming.mappingNodeCount ?? 0) > (current.mappingNodeCount ?? 0)) return true
   if ((incoming.mappingNodeCount ?? 0) < (current.mappingNodeCount ?? 0)) return false
   return incoming.importOrder > current.importOrder
@@ -295,8 +361,7 @@ function normalizeStringQuotes(input: string): string | null {
   let quote = ''
   let escaped = false
 
-  for (let i = 0; i < input.length; i += 1) {
-    const char = input[i]
+  for (const char of input) {
     if (!inString) {
       if (char === '`') {
         return null
@@ -597,7 +662,7 @@ function convertParts(
 }
 
 function convertPart(part: RawPart, assetsJson: AssetsIndex, assetsMap: Record<string, string>): Block[] {
-  if (part == null) return []
+  if (part === null || part === undefined) return []
   if (typeof part === 'string') {
     return part.trim().length ? splitMarkdownIntoBlocks(part) : []
   }
@@ -729,10 +794,160 @@ function buildDetails(message?: RawMessage): Details | undefined {
   if (search) {
     details.search = search
   }
+  const meta = extractStructuredMessageMeta(message)
+  if (meta) {
+    details.meta = meta
+  }
   if (message.metadata) {
     details.data = cloneMetadata(message.metadata)
   }
   return Object.keys(details).length ? details : undefined
+}
+
+function extractConversationMeta(raw: RawConversation): ConversationMeta | undefined {
+  const meta: ConversationMeta = {}
+  const blockedUrls = dedupeTrimmedStrings(raw.blocked_urls)
+  const contextScopes = dedupeTrimmedStrings(raw.context_scopes)
+  const pluginIds = dedupeTrimmedStrings(raw.plugin_ids)
+
+  if (blockedUrls) {
+    meta.blocked_urls = blockedUrls
+  }
+  if (typeof raw.default_model_slug === 'string' || raw.default_model_slug === null) {
+    meta.default_model_slug = raw.default_model_slug
+  }
+  if (typeof raw.conversation_origin === 'string' || raw.conversation_origin === null) {
+    meta.conversation_origin = raw.conversation_origin
+  }
+  if (contextScopes) {
+    meta.context_scopes = contextScopes
+  }
+  if (pluginIds) {
+    meta.plugin_ids = pluginIds
+  }
+  if (typeof raw.gizmo_id === 'string' || raw.gizmo_id === null) {
+    meta.gizmo_id = raw.gizmo_id
+  }
+  if (typeof raw.owner === 'string' || raw.owner === null) {
+    meta.owner = raw.owner
+  }
+  if (typeof raw.is_starred === 'boolean') {
+    meta.is_starred = raw.is_starred
+  }
+  if (typeof raw.is_read_only === 'boolean') {
+    meta.is_read_only = raw.is_read_only
+  }
+  if (typeof raw.is_do_not_remember === 'boolean') {
+    meta.is_do_not_remember = raw.is_do_not_remember
+  }
+
+  return Object.keys(meta).length ? meta : undefined
+}
+
+function extractStructuredMessageMeta(message: RawMessage): MessageMeta | null {
+  const metadata = toRecord(message.metadata) ?? {}
+
+  const meta: MessageMeta = {}
+  const status = getString(message.status) ?? getString(metadata.status)
+  if (status) {
+    meta.status = status
+  }
+
+  const messageType = getString(metadata.message_type)
+  if (messageType) {
+    meta.message_type = messageType
+  }
+  const requestId = getString(metadata.request_id)
+  if (requestId) {
+    meta.request_id = requestId
+  }
+  const modelSlug = getString(metadata.model_slug)
+  if (modelSlug) {
+    meta.model_slug = modelSlug
+  }
+  const requestedModelSlug = getString(metadata.requested_model_slug)
+  if (requestedModelSlug) {
+    meta.requested_model_slug = requestedModelSlug
+  }
+  const reasoningTitle = getString(metadata.reasoning_title)
+  if (reasoningTitle) {
+    meta.reasoning_title = reasoningTitle
+  }
+  const reasoningStatus = getString(metadata.reasoning_status)
+  if (reasoningStatus) {
+    meta.reasoning_status = reasoningStatus
+  }
+  const finishedDurationSec = getNumber(metadata.finished_duration_sec)
+  if (finishedDurationSec !== undefined) {
+    meta.finished_duration_sec = finishedDurationSec
+  }
+
+  if (Object.keys(metadata).length > 0) {
+    const tokenUsage = extractTokenUsage(metadata)
+    if (tokenUsage) {
+      if (tokenUsage.prompt_tokens !== undefined) {
+        meta.prompt_tokens = tokenUsage.prompt_tokens
+      }
+      if (tokenUsage.completion_tokens !== undefined) {
+        meta.completion_tokens = tokenUsage.completion_tokens
+      }
+      if (tokenUsage.total_tokens !== undefined) {
+        meta.total_tokens = tokenUsage.total_tokens
+      }
+    }
+  }
+
+  return Object.keys(meta).length ? meta : null
+}
+
+function extractTokenUsage(
+  metadata: JsonRecord,
+): Pick<MessageMeta, 'prompt_tokens' | 'completion_tokens' | 'total_tokens'> | null {
+  const queue: unknown[] = [metadata]
+  const visited = new Set<object>()
+
+  while (queue.length) {
+    const current = queue.shift()
+    if (!current || typeof current !== 'object') {
+      continue
+    }
+    if (visited.has(current)) {
+      continue
+    }
+    visited.add(current)
+
+    if (Array.isArray(current)) {
+      current.forEach((entry) => queue.push(entry))
+      continue
+    }
+
+    const record = current as JsonRecord
+    const promptTokens = getFirstNumberByKeys(record, ['prompt_tokens', 'input_tokens'])
+    const completionTokens = getFirstNumberByKeys(record, ['completion_tokens', 'output_tokens'])
+    const totalTokens = getFirstNumberByKeys(record, ['total_tokens'])
+
+    if (promptTokens !== undefined || completionTokens !== undefined || totalTokens !== undefined) {
+      return {
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
+        total_tokens: totalTokens,
+      }
+    }
+
+    Object.values(record).forEach((entry) => queue.push(entry))
+  }
+
+  return null
+}
+
+function getFirstNumberByKeys(record: JsonRecord, keys: string[]): number | undefined {
+  for (const key of keys) {
+    const value = getNumber(record[key])
+    if (value !== undefined) {
+      return value
+    }
+  }
+  return undefined
 }
 
 function extractThinking(content?: RawContent): string | null {

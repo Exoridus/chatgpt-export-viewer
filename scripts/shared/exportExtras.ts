@@ -1,13 +1,14 @@
 import { strFromU8 } from 'fflate'
+
 import type {
+  BasisPointsExport,
   ExportExtraData,
   ExportUserProfile,
-  MessageFeedbackRecord,
-  GroupChatsExport,
-  ShoppingListEntry,
-  BasisPointsExport,
-  SoraExport,
   GeneratedAsset,
+  GroupChatsExport,
+  MessageFeedbackRecord,
+  ShoppingListEntry,
+  SoraExport,
 } from '../../src/types'
 import type { AssetsIndex } from './slimConvert'
 import { guessMimeByPath } from './slimConvert'
@@ -56,7 +57,7 @@ export function collectGeneratedAssets(
     const existing = files.get(relativePath)
     if (existing) {
       existing.pointers = mergePointerLists(existing.pointers, next.pointers)
-      if (existing.size == null && next.size != null) existing.size = next.size
+      if ((existing.size === null || existing.size === undefined) && next.size !== null && next.size !== undefined) existing.size = next.size
       if (!existing.mime && next.mime) existing.mime = next.mime
       existing.createdAt = pickEarlierTimestamp(existing.createdAt, next.createdAt)
       existing.updatedAt = pickLaterTimestamp(existing.updatedAt, next.updatedAt)

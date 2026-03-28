@@ -1,123 +1,155 @@
-import clsx from 'clsx'
-import { AudioLines, Download, ExternalLink, FileIcon, Film, ImageIcon, X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import clsx from 'clsx';
+import { AudioLines, Download, ExternalLink, FileIcon, Film, ImageIcon, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
-import { useModalA11y } from '../../hooks/useModalA11y'
-import { useAppData } from '../../state/AppDataContext'
-import { usePreferences } from '../../state/PreferencesContext'
-import styles from './AssetBlock.module.scss'
-import sharedStyles from './AssetViewerShared.module.scss'
-import { CodeBlock } from './CodeBlock'
+import { useModalA11y } from '../../hooks/useModalA11y';
+import { formatText } from '../../lib/i18n';
+import { useAppData } from '../../state/AppDataContext';
+import { usePreferences } from '../../state/PreferencesContext';
+import styles from './AssetBlock.module.scss';
+import sharedStyles from './AssetViewerShared.module.scss';
+import { CodeBlock } from './CodeBlock';
 
 interface AssetBlockProps {
-  assetPointer: string
-  assetKey?: string
-  mediaType?: 'image' | 'audio' | 'video' | 'file'
-  alt?: string
+  assetPointer: string;
+  assetKey?: string;
+  mediaType?: 'image' | 'audio' | 'video' | 'file';
+  alt?: string;
+  variant?: 'default' | 'embedded';
 }
 
-export function AssetBlock({ assetPointer, assetKey, mediaType = 'file', alt }: AssetBlockProps) {
-  const { getAssetBlobUrl } = useAppData()
-  const { t } = usePreferences()
-  const [url, setUrl] = useState<string | null>(null)
-  const [viewerOpen, setViewerOpen] = useState(false)
-  const [textPreview, setTextPreview] = useState<string | null>(null)
-  const [textLoading, setTextLoading] = useState(false)
-  const [textError, setTextError] = useState<string | null>(null)
-  const [truncated, setTruncated] = useState(false)
+export function AssetBlock({ assetPointer, assetKey, mediaType = 'file', alt, variant = 'default' }: AssetBlockProps) {
+  const { getAssetBlobUrl } = useAppData();
+  const { t } = usePreferences();
+  const [url, setUrl] = useState<string | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [textPreview, setTextPreview] = useState<string | null>(null);
+  const [textLoading, setTextLoading] = useState(false);
+  const [textError, setTextError] = useState<string | null>(null);
+  const [truncated, setTruncated] = useState(false);
+  const [mediaPreviewFailed, setMediaPreviewFailed] = useState(false);
 
   useEffect(() => {
-    let cancelled = false
+    let cancelled = false;
     async function resolve() {
       if (!assetKey) {
-        return
+        return;
       }
-      const localUrl = await getAssetBlobUrl(assetKey)
+      const localUrl = await getAssetBlobUrl(assetKey);
       if (!cancelled) {
-        setUrl(localUrl ?? buildServerAssetPath(assetKey))
+        setUrl(localUrl ?? buildServerAssetPath(assetKey));
       }
     }
-    resolve()
+    void resolve();
     return () => {
-      cancelled = true
-    }
-  }, [assetKey, getAssetBlobUrl])
+      cancelled = true;
+    };
+  }, [assetKey, getAssetBlobUrl]);
 
-  const resolvedUrl = url ?? (assetKey ? buildServerAssetPath(assetKey) : '')
-  const displayName = useMemo(() => alt || extractAssetName(assetKey || assetPointer), [alt, assetKey, assetPointer])
-  const canPreviewText = mediaType === 'file' && isTextLikeAsset(displayName)
+  const resolvedUrl = url ?? (assetKey ? buildServerAssetPath(assetKey) : '');
+  const displayName = useMemo(() => alt || extractAssetName(assetKey || assetPointer), [alt, assetKey, assetPointer]);
+  const canPreviewText = mediaType === 'file' && isTextLikeAsset(displayName);
+  const showMediaThumb = Boolean(resolvedUrl) && !mediaPreviewFailed;
+
+  useEffect(() => {
+    setMediaPreviewFailed(false);
+  }, [assetKey, mediaType, resolvedUrl]);
 
   useEffect(() => {
     if (!viewerOpen || !canPreviewText || !resolvedUrl) {
-      setTextPreview(null)
-      setTextLoading(false)
-      setTextError(null)
-      setTruncated(false)
-      return
+      setTextPreview(null);
+      setTextLoading(false);
+      setTextError(null);
+      setTruncated(false);
+      return;
     }
-    let cancelled = false
-    setTextLoading(true)
-    setTextError(null)
-    setTextPreview(null)
-    setTruncated(false)
+    let cancelled = false;
+    setTextLoading(true);
+    setTextError(null);
+    setTextPreview(null);
+    setTruncated(false);
     fetch(resolvedUrl)
-      .then((response) => {
+      .then(response => {
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`)
+          throw new Error(`HTTP ${response.status}`);
         }
-        return response.text()
+        return response.text();
       })
-      .then((text) => {
+      .then(text => {
         if (cancelled) {
-          return
+          return;
         }
-        const maxPreviewChars = 200_000
-        setTruncated(text.length > maxPreviewChars)
-        setTextPreview(text.slice(0, maxPreviewChars))
+        const maxPreviewChars = 200_000;
+        setTruncated(text.length > maxPreviewChars);
+        setTextPreview(text.slice(0, maxPreviewChars));
       })
-      .catch((error) => {
+      .catch(error => {
         if (!cancelled) {
-          setTextError(error instanceof Error ? error.message : String(error))
+          setTextError(error instanceof Error ? error.message : String(error));
         }
       })
       .finally(() => {
         if (!cancelled) {
-          setTextLoading(false)
+          setTextLoading(false);
         }
-      })
+      });
     return () => {
-      cancelled = true
-    }
-  }, [canPreviewText, resolvedUrl, viewerOpen])
+      cancelled = true;
+    };
+  }, [canPreviewText, resolvedUrl, viewerOpen]);
 
   if (!assetKey) {
-    return <div className={styles.missing}>Missing asset {assetPointer}</div>
+    return <div className={styles.missing}>Missing asset {assetPointer}</div>;
   }
 
   return (
     <>
       <button
         type="button"
-        className={styles.thumb}
+        className={clsx(styles.thumb, variant === 'embedded' && styles.thumbEmbedded)}
         onClick={() => setViewerOpen(true)}
         aria-label={`${t.viewer.openAttachment} ${displayName}`}
       >
         {mediaType === 'image' && (
           <>
-            <img src={resolvedUrl} alt={displayName} className={styles.thumbMedia} loading="lazy" />
-            <span className={styles.thumbBadge}>
-              <ImageIcon size={13} /> {t.viewer.image}
-            </span>
+            {showMediaThumb ? (
+              <>
+                <img src={resolvedUrl} alt={displayName} className={styles.thumbMedia} loading="lazy" onError={() => setMediaPreviewFailed(true)} />
+                <span className={styles.thumbBadge}>
+                  <ImageIcon size={13} /> {t.viewer.image}
+                </span>
+              </>
+            ) : (
+              <div className={clsx(styles.thumbFile, styles.thumbUnavailable)}>
+                <ImageIcon size={20} />
+                <span className={styles.thumbFileName} title={displayName}>
+                  {displayName}
+                </span>
+                <span className={styles.thumbFileMeta}>{t.viewer.previewUnavailable}</span>
+              </div>
+            )}
           </>
         )}
         {mediaType === 'video' && (
           <>
-            <video className={styles.thumbMedia} muted playsInline preload="metadata">
-              <source src={resolvedUrl} />
-            </video>
-            <span className={styles.thumbBadge}>
-              <Film size={13} /> {t.viewer.video}
-            </span>
+            {showMediaThumb ? (
+              <>
+                <video className={styles.thumbMedia} muted playsInline preload="metadata" onError={() => setMediaPreviewFailed(true)}>
+                  <source src={resolvedUrl} />
+                </video>
+                <span className={styles.thumbBadge}>
+                  <Film size={13} /> {t.viewer.video}
+                </span>
+              </>
+            ) : (
+              <div className={clsx(styles.thumbFile, styles.thumbUnavailable)}>
+                <Film size={20} />
+                <span className={styles.thumbFileName} title={displayName}>
+                  {displayName}
+                </span>
+                <span className={styles.thumbFileMeta}>{t.viewer.previewUnavailable}</span>
+              </div>
+            )}
           </>
         )}
         {mediaType === 'audio' && (
@@ -139,7 +171,7 @@ export function AssetBlock({ assetPointer, assetKey, mediaType = 'file', alt }: 
           </div>
         )}
       </button>
-      {viewerOpen && (
+      {viewerOpen ? (
         <AssetViewer
           url={resolvedUrl}
           displayName={displayName}
@@ -152,39 +184,29 @@ export function AssetBlock({ assetPointer, assetKey, mediaType = 'file', alt }: 
           t={t}
           onClose={() => setViewerOpen(false)}
         />
-      )}
+      ) : null}
     </>
-  )
+  );
 }
 
 interface AssetViewerProps {
-  url: string
-  displayName: string
-  mediaType: 'image' | 'audio' | 'video' | 'file'
-  textPreview: string | null
-  textLoading: boolean
-  textError: string | null
-  truncated: boolean
-  language: string
-  t: ReturnType<typeof usePreferences>['t']
-  onClose: () => void
+  url: string;
+  displayName: string;
+  mediaType: 'image' | 'audio' | 'video' | 'file';
+  textPreview: string | null;
+  textLoading: boolean;
+  textError: string | null;
+  truncated: boolean;
+  language: string;
+  t: ReturnType<typeof usePreferences>['t'];
+  onClose: () => void;
 }
 
-function AssetViewer({
-  url,
-  displayName,
-  mediaType,
-  textPreview,
-  textLoading,
-  textError,
-  truncated,
-  language,
-  t,
-  onClose,
-}: AssetViewerProps) {
-  const { containerRef, onOverlayMouseDown } = useModalA11y({ open: true, onClose })
+function AssetViewer({ url, displayName, mediaType, textPreview, textLoading, textError, truncated, language, t, onClose }: AssetViewerProps) {
+  const { containerRef, onOverlayMouseDown } = useModalA11y({ open: true, onClose });
 
   return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div className={clsx('modal-overlay', sharedStyles.overlay)} role="dialog" aria-modal="true" onMouseDown={onOverlayMouseDown}>
       <div ref={containerRef} className={sharedStyles.modal}>
         <header className={sharedStyles.header}>
@@ -196,29 +218,38 @@ function AssetViewer({
           </button>
         </header>
         <section className={sharedStyles.content}>
-          {mediaType === 'image' && <img src={url} alt={displayName} className={sharedStyles.image} />}
-          {mediaType === 'video' && (
-            <video controls className={sharedStyles.video}>
-              <source src={url} />
-            </video>
-          )}
-          {mediaType === 'audio' && (
-            <audio controls className={sharedStyles.audio}>
-              <source src={url} />
-            </audio>
-          )}
+          {mediaType === 'image' &&
+            (url ? <img src={url} alt={displayName} className={sharedStyles.image} /> : <p className={sharedStyles.status}>{t.viewer.previewUnavailable}</p>)}
+          {mediaType === 'video' &&
+            (url ? (
+              <video controls className={sharedStyles.video}>
+                <source src={url} />
+                <track kind="captions" />
+              </video>
+            ) : (
+              <p className={sharedStyles.status}>{t.viewer.previewUnavailable}</p>
+            ))}
+          {mediaType === 'audio' &&
+            (url ? (
+              <audio controls className={sharedStyles.audio}>
+                <source src={url} />
+                <track kind="captions" />
+              </audio>
+            ) : (
+              <p className={sharedStyles.status}>{t.viewer.previewUnavailable}</p>
+            ))}
           {mediaType === 'file' && (
             <>
-              {textLoading && <p className={sharedStyles.status}>{t.viewer.loadingPreview}</p>}
+              {textLoading ? <p className={sharedStyles.status}>{t.viewer.loadingPreview}</p> : null}
               {!textLoading && textPreview !== null && (
                 <div className={sharedStyles.code}>
                   <CodeBlock text={textPreview} lang={language} />
-                  {truncated && <p className={sharedStyles.status}>{t.viewer.previewTruncated}</p>}
+                  {truncated ? <p className={sharedStyles.status}>{t.viewer.previewTruncated}</p> : null}
                 </div>
               )}
               {!textLoading && textPreview === null && (
                 <p className={sharedStyles.status}>
-                  {textError ? `Preview unavailable (${textError})` : t.viewer.previewUnavailableType}
+                  {textError ? formatText(t.viewer.previewUnavailableWithReason, { reason: textError }) : t.viewer.previewUnavailableType}
                 </p>
               )}
             </>
@@ -237,33 +268,38 @@ function AssetViewer({
         </footer>
       </div>
     </div>
-  )
+  );
 }
 
 function buildServerAssetPath(assetKey: string): string {
-  if (!assetKey) {return ''}
-  return assetKey.startsWith('assets/') ? assetKey : `assets/${assetKey}`
+  if (!assetKey) {
+    return '';
+  }
+  return assetKey.startsWith('assets/') ? assetKey : `assets/${assetKey}`;
 }
 
 function extractAssetName(input: string): string {
-  const normalized = input.split('/').pop()?.trim()
-  return normalized && normalized.length > 0 ? normalized : input
+  const normalized = input.split('/').pop()?.trim();
+  return normalized && normalized.length > 0 ? normalized : input;
 }
 
 function fileTypeLabel(fileName: string): string {
-  const extension = fileName.includes('.') ? fileName.slice(fileName.lastIndexOf('.') + 1).trim().toUpperCase() : ''
-  return extension || 'FILE'
+  const extension = fileName.includes('.')
+    ? fileName
+        .slice(fileName.lastIndexOf('.') + 1)
+        .trim()
+        .toUpperCase()
+    : '';
+  return extension || 'FILE';
 }
 
 function isTextLikeAsset(path: string): boolean {
-  return /\.(txt|md|markdown|json|js|jsx|ts|tsx|css|scss|sass|html|xml|yml|yaml|toml|ini|conf|sh|bash|ps1|py|sql|go|php|lua)$/i.test(
-    path.toLowerCase(),
-  )
+  return /\.(txt|md|markdown|json|js|jsx|ts|tsx|css|scss|sass|html|xml|yml|yaml|toml|ini|conf|sh|bash|ps1|py|sql|go|php|lua)$/i.test(path.toLowerCase());
 }
 
 function inferCodeLanguage(path: string): string {
-  const lower = path.toLowerCase()
-  const extension = lower.includes('.') ? lower.slice(lower.lastIndexOf('.') + 1) : ''
+  const lower = path.toLowerCase();
+  const extension = lower.includes('.') ? lower.slice(lower.lastIndexOf('.') + 1) : '';
   const map: Record<string, string> = {
     txt: 'text',
     md: 'markdown',
@@ -291,6 +327,6 @@ function inferCodeLanguage(path: string): string {
     go: 'go',
     php: 'php',
     lua: 'lua',
-  }
-  return map[extension] ?? 'text'
+  };
+  return map[extension] ?? 'text';
 }

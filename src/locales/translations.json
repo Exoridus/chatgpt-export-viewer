@@ -1,9 +1,25 @@
 {
   "en": {
     "home": {
-      "welcome": "Welcome",
-      "desc1": "Use the Import button to load your ChatGPT data export ZIP files. Imported conversations stay offline in your browser until you purge them.",
-      "desc2": "Already have a server dataset? Select a conversation from the sidebar to get started."
+      "welcome": "Start with your ChatGPT export",
+      "desc1": "Import your ZIP archive to unlock local, offline browsing.",
+      "desc2": "Drop files anywhere or click to select."
+    },
+    "about": {
+      "title": "About",
+      "closeDialog": "Close About dialog",
+      "productName": "ChatGPT Data Export Viewer",
+      "lead": "Browse ChatGPT exports in a static SPA with local import, search, and offline-friendly hosting.",
+      "copy": "No backend required. Host the viewer as static files, and optionally add imported conversation datasets for server-side usage.",
+      "linksLabel": "Project links",
+      "github": "GitHub",
+      "license": "License",
+      "sponsor": "Sponsor",
+      "build": "Build",
+      "version": "Version",
+      "commit": "Commit",
+      "copyCommit": "Copy commit hash",
+      "copiedCommit": "Copied commit hash"
     },
     "sidebar": {
       "emptyTitle": "No conversations yet",
@@ -19,7 +35,7 @@
     },
     "nav": {
       "home": "Conversations",
-      "gallery": "Artifacts",
+      "gallery": "Gallery",
       "settings": "Settings",
       "about": "About",
       "search": "Search conversations...",
@@ -43,16 +59,37 @@
       "searchKeyboard": "Ctrl/Cmd + K",
       "collapseAll": "Collapse all system blocks",
       "expandAll": "Expand all system blocks",
-      "jumpTop": "Jump to top"
+      "jumpTop": "Jump to top",
+      "yes": "Yes",
+      "no": "No"
     },
     "gallery": {
-      "title": "Artifacts",
-      "totalItems": "total items",
+      "title": "Gallery",
+      "totalItems": "items",
       "linked": "In conversations",
       "unlinked": "Unlinked",
+      "filterLabel": "Gallery filter",
+      "allTitle": "All imported gallery items",
+      "linkedTitle": "Items linked inside conversations",
+      "unlinkedTitle": "Items without active conversation links",
       "empty": "No assets in this category yet.",
       "openPreviewFor": "Open preview for {name}",
-      "unknownTime": "Unknown time"
+      "unknownTime": "—",
+      "linkedShort": "Linked",
+      "kindLabel": "Type",
+      "kindAll": "All types",
+      "kindImage": "Image",
+      "kindVideo": "Video",
+      "kindAudio": "Audio",
+      "kindCode": "Code",
+      "kindDocument": "Document",
+      "originLabel": "Origin",
+      "originAll": "All origins",
+      "originGenerated": "Generated",
+      "originUploaded": "Uploaded",
+      "conversationLabel": "Conversation",
+      "conversationAll": "All conversations",
+      "overview": "Browse generated and uploaded media, code, and documents from your conversations."
     },
     "settings": {
       "title": "Settings",
@@ -72,7 +109,18 @@
         "purgeDialogTitle": "Purge database?",
         "purgeDialogBody": "Are you sure you want to delete all imported data{sizeNote}? This action cannot be undone.",
         "purgeNow": "Purge now",
-        "purging": "Purging..."
+        "purging": "Purging...",
+        "exportHelp": "Exports locally imported data as an offline viewer package.",
+        "cleanupHelp": "Removes locally cached conversations that are already available from the server.",
+        "purgeHelp": "Deletes all locally imported data from this browser.",
+        "exportTitle": "Export local dataset",
+        "exportDescription": "Create an offline viewer package from your current local imports.",
+        "exportAction": "Export offline viewer",
+        "exportUnavailableHint": "Import conversations to enable single-click offline bundle export."
+        ,
+        "purgeTitle": "Delete local data",
+        "purgeDescription": "Remove all imported conversations and assets from this browser.",
+        "purgeAction": "Delete local data"
       },
       "viewer": {
         "localStorageTitle": "Local offline storage",
@@ -87,12 +135,16 @@
         "themeSystem": "System",
         "themeDark": "Dark",
         "themeLight": "Light",
+        "previewSidebarTitle": "Conversations",
+        "previewPrompt": "How can I parse the export mapping?",
+        "previewReply": "Use import mode to merge, replace, or clone datasets.",
         "collapseSystem": "Collapse system messages by default",
         "collapseCode": "Collapse code blocks by default",
         "languageEnglish": "English",
         "languageGerman": "Deutsch"
       },
       "sections": {
+        "general": "General",
         "appearance": "Appearance",
         "behavior": "Behavior"
       }
@@ -124,11 +176,15 @@
       "wrapLongLines": "Wrap long lines",
       "conversationActions": "Conversation actions",
       "jumpBottom": "Jump to bottom",
-      "linkedArtifacts": "Linked artifacts",
+      "linkedArtifacts": "Linked gallery items",
+      "loadingConversation": "Loading conversation...",
       "noMessageContent": "No content for this message.",
       "unsupportedBlock": "Unsupported block type.",
       "copyConversationLink": "Copy conversation link",
       "conversationNotAvailableExport": "Conversation not available for export.",
+      "conversationNotFound": "Conversation not found",
+      "conversationMissingHint": "It might not exist locally or on the server yet.",
+      "conversationLoadFailed": "Failed to load conversation",
       "conversationLinkCopied": "Conversation link copied.",
       "unableCopyLink": "Unable to copy link.",
       "thinkingFor": "Thought for",
@@ -146,7 +202,21 @@
       "showMore": "Show more",
       "showLess": "Show less",
       "previewUnavailable": "Preview unavailable",
-      "previewUnavailableWithReason": "Preview unavailable ({reason})"
+      "previewUnavailableWithReason": "Preview unavailable ({reason})",
+      "exportConversationZip": "Export conversation ZIP",
+      "conversationInfo": "Conversation info",
+      "conversationInfoId": "Viewer ID",
+      "conversationInfoConversationId": "Conversation ID",
+      "conversationInfoRawId": "Raw export ID",
+      "conversationInfoUpdated": "Last message",
+      "conversationInfoServerUpdated": "Server update",
+      "conversationInfoArchived": "Archived",
+      "conversationInfoMemoryScope": "Memory scope",
+      "conversationInfoNodes": "Mapping nodes",
+      "conversationDeleted": "Conversation deleted from local dataset.",
+      "conversationDeleteUnavailable": "Conversation can only be deleted from local imports.",
+      "conversationZipExported": "Conversation ZIP exported ({assets} assets).",
+      "conversationZipExportedPartial": "Conversation ZIP exported ({assets} assets, {missing} missing)."
     },
     "importer": {
       "title": "Import ChatGPT Export",
@@ -170,7 +240,9 @@
         "noConversations": "No conversations found in the archive",
         "upToDate": "No new or updated conversations to process — everything is up to date.",
         "noConversationsDetected": "No conversations were detected in the selected files.",
-        "failed": "Import failed — please verify the ZIP file came from ChatGPT data export."
+        "failed": "Import failed — please verify the ZIP file came from ChatGPT data export.",
+        "importSuccess": "Import successful: {count} conversations imported.",
+        "importSuccessWithAssets": "Import successful: {count} conversations and {assets} assets imported."
       },
       "progress": {
         "uploading": "Uploading selected archives…",
@@ -188,11 +260,14 @@
         "replace": "Clears existing conversations and imports only the selected archives.",
         "clone": "Imports missing conversations and keeps both versions when timestamps differ."
       },
+      "firstImportHint": "Start with your first import. Strategy options appear once conversations already exist.",
       "pendingFilesReady": "{count} dropped ZIP file(s) ready.",
       "importDropped": "Import dropped files ({count})",
       "multipleHint": "You can select multiple exports at once.",
       "copyArchiveName": "Copy archive filename",
       "progressAria": "Conversation import progress",
+      "successTitle": "Import successful",
+      "successSummary": "{count} conversations imported.",
       "completeNoChanges": "Everything is up to date.",
       "viewConversations": "View conversations",
       "importMore": "Import more"
@@ -223,9 +298,25 @@
   },
   "de": {
     "home": {
-      "welcome": "Willkommen",
-      "desc1": "Nutzen Sie die Import-Schaltfläche, um Ihre ChatGPT-Datenexport-ZIP-Dateien zu laden. Importierte Unterhaltungen bleiben offline in Ihrem Browser gespeichert, bis Sie diese löschen.",
-      "desc2": "Haben Sie bereits einen Server-Datensatz? Wählen Sie eine Unterhaltung aus der Seitenleiste aus, um zu beginnen."
+      "welcome": "Mit Ihrem ChatGPT-Export starten",
+      "desc1": "Importieren Sie Ihr ZIP-Archiv und durchsuchen Sie Unterhaltungen lokal und offline.",
+      "desc2": "Dateien hier ablegen oder klicken, um auszuwählen."
+    },
+    "about": {
+      "title": "Über",
+      "closeDialog": "Über-Dialog schließen",
+      "productName": "ChatGPT Data Export Viewer",
+      "lead": "Durchsuchen Sie ChatGPT-Exporte in einer statischen SPA mit lokalem Import, Suche und offline-freundlichem Hosting.",
+      "copy": "Kein Backend erforderlich. Hosten Sie den Viewer als statische Dateien und ergänzen Sie bei Bedarf importierte Unterhaltungsdatensätze für die serverseitige Nutzung.",
+      "linksLabel": "Projektlinks",
+      "github": "GitHub",
+      "license": "Lizenz",
+      "sponsor": "Sponsoring",
+      "build": "Build",
+      "version": "Version",
+      "commit": "Commit",
+      "copyCommit": "Commit-Hash kopieren",
+      "copiedCommit": "Commit-Hash kopiert"
     },
     "sidebar": {
       "emptyTitle": "Noch keine Unterhaltungen",
@@ -241,7 +332,7 @@
     },
     "nav": {
       "home": "Unterhaltungen",
-      "gallery": "Artefakte",
+      "gallery": "Galerie",
       "settings": "Einstellungen",
       "about": "Über",
       "search": "Unterhaltungen durchsuchen...",
@@ -265,16 +356,37 @@
       "searchKeyboard": "Strg/Cmd + K",
       "collapseAll": "Alle System-Blöcke einklappen",
       "expandAll": "Alle System-Blöcke ausklappen",
-      "jumpTop": "Nach oben springen"
+      "jumpTop": "Nach oben springen",
+      "yes": "Ja",
+      "no": "Nein"
     },
     "gallery": {
-      "title": "Artefakte",
-      "totalItems": "Elemente insgesamt",
+      "title": "Galerie",
+      "totalItems": "Elemente",
       "linked": "In Unterhaltungen",
       "unlinked": "Nicht verknüpft",
+      "filterLabel": "Galerie-Filter",
+      "allTitle": "Alle importierten Galerie-Elemente",
+      "linkedTitle": "In Unterhaltungen verknüpfte Elemente",
+      "unlinkedTitle": "Elemente ohne aktive Verknüpfung",
       "empty": "Noch keine Medien in dieser Kategorie vorhanden.",
       "openPreviewFor": "Vorschau für {name} öffnen",
-      "unknownTime": "Unbekannte Zeit"
+      "unknownTime": "—",
+      "linkedShort": "Verknüpft",
+      "kindLabel": "Typ",
+      "kindAll": "Alle Typen",
+      "kindImage": "Bild",
+      "kindVideo": "Video",
+      "kindAudio": "Audio",
+      "kindCode": "Code",
+      "kindDocument": "Dokument",
+      "originLabel": "Herkunft",
+      "originAll": "Alle",
+      "originGenerated": "Generiert",
+      "originUploaded": "Hochgeladen",
+      "conversationLabel": "Unterhaltung",
+      "conversationAll": "Alle Unterhaltungen",
+      "overview": "Durchsuchen Sie generierte und hochgeladene Medien, Code und Dokumente aus Ihren Unterhaltungen."
     },
     "settings": {
       "title": "Einstellungen",
@@ -294,7 +406,17 @@
         "purgeDialogTitle": "Datenbank löschen?",
         "purgeDialogBody": "Möchten Sie wirklich alle importierten Daten löschen{sizeNote}? Dieser Vorgang kann nicht rückgängig gemacht werden.",
         "purgeNow": "Jetzt löschen",
-        "purging": "Lösche..."
+        "purging": "Lösche...",
+        "exportHelp": "Exportiert lokal importierte Daten als Offline-Viewer-Paket.",
+        "cleanupHelp": "Entfernt lokal zwischengespeicherte Unterhaltungen, die bereits vom Server verfügbar sind.",
+        "purgeHelp": "Löscht alle lokal importierten Daten aus diesem Browser.",
+        "exportTitle": "Lokalen Datensatz exportieren",
+        "exportDescription": "Erstellt ein Offline-Viewer-Paket aus den aktuell lokal importierten Inhalten.",
+        "exportAction": "Offline-Viewer exportieren",
+        "exportUnavailableHint": "Importieren Sie Unterhaltungen, um den Offline-Export zu aktivieren.",
+        "purgeTitle": "Lokale Daten löschen",
+        "purgeDescription": "Entfernt alle importierten Unterhaltungen und Assets aus diesem Browser.",
+        "purgeAction": "Lokale Daten löschen"
       },
       "viewer": {
         "localStorageTitle": "Lokaler Offline-Speicher",
@@ -309,12 +431,16 @@
         "themeSystem": "System",
         "themeDark": "Dunkel",
         "themeLight": "Hell",
+        "previewSidebarTitle": "Unterhaltungen",
+        "previewPrompt": "Wie kann ich das Export-Mapping auswerten?",
+        "previewReply": "Verwenden Sie den Importmodus, um Datensätze zusammenzuführen, zu ersetzen oder zu klonen.",
         "collapseSystem": "Systemmeldungen standardmäßig einklappen",
         "collapseCode": "Codeblöcke standardmäßig einklappen",
         "languageEnglish": "English",
         "languageGerman": "Deutsch"
       },
       "sections": {
+        "general": "Allgemein",
         "appearance": "Darstellung",
         "behavior": "Verhalten"
       }
@@ -346,11 +472,15 @@
       "wrapLongLines": "Lange Zeilen umbrechen",
       "conversationActions": "Unterhaltungs-Aktionen",
       "jumpBottom": "Nach unten springen",
-      "linkedArtifacts": "Verknüpfte Artefakte",
+      "linkedArtifacts": "Verknüpfte Galerie-Elemente",
+      "loadingConversation": "Unterhaltung wird geladen...",
       "noMessageContent": "Kein Inhalt für diese Nachricht.",
       "unsupportedBlock": "Nicht unterstützter Blocktyp.",
       "copyConversationLink": "Unterhaltungslink kopieren",
       "conversationNotAvailableExport": "Unterhaltung ist nicht für den Export verfügbar.",
+      "conversationNotFound": "Unterhaltung nicht gefunden",
+      "conversationMissingHint": "Sie ist lokal oder auf dem Server möglicherweise noch nicht verfügbar.",
+      "conversationLoadFailed": "Unterhaltung konnte nicht geladen werden",
       "conversationLinkCopied": "Unterhaltungslink kopiert.",
       "unableCopyLink": "Link konnte nicht kopiert werden.",
       "thinkingFor": "Nachgedacht für",
@@ -368,7 +498,21 @@
       "showMore": "Mehr anzeigen",
       "showLess": "Weniger anzeigen",
       "previewUnavailable": "Vorschau nicht verfügbar",
-      "previewUnavailableWithReason": "Vorschau nicht verfügbar ({reason})"
+      "previewUnavailableWithReason": "Vorschau nicht verfügbar ({reason})",
+      "exportConversationZip": "Unterhaltung als ZIP exportieren",
+      "conversationInfo": "Unterhaltungsinfo",
+      "conversationInfoId": "Viewer-ID",
+      "conversationInfoConversationId": "Unterhaltungs-ID",
+      "conversationInfoRawId": "Rohdaten-ID",
+      "conversationInfoUpdated": "Letzte Nachricht",
+      "conversationInfoServerUpdated": "Server-Update",
+      "conversationInfoArchived": "Archiviert",
+      "conversationInfoMemoryScope": "Speicherbereich",
+      "conversationInfoNodes": "Mapping-Knoten",
+      "conversationDeleted": "Unterhaltung aus dem lokalen Datensatz gelöscht.",
+      "conversationDeleteUnavailable": "Unterhaltungen können nur aus lokalen Importen gelöscht werden.",
+      "conversationZipExported": "Unterhaltungs-ZIP exportiert ({assets} Assets).",
+      "conversationZipExportedPartial": "Unterhaltungs-ZIP exportiert ({assets} Assets, {missing} fehlen)."
     },
     "importer": {
       "title": "ChatGPT-Export importieren",
@@ -392,7 +536,9 @@
         "noConversations": "Keine Unterhaltungen im Archiv gefunden",
         "upToDate": "Keine neuen oder aktualisierten Unterhaltungen zu verarbeiten — alles ist aktuell.",
         "noConversationsDetected": "In den ausgewählten Dateien wurden keine Unterhaltungen erkannt.",
-        "failed": "Import fehlgeschlagen — bitte überprüfen Sie, ob die ZIP-Datei aus dem ChatGPT-Datenexport stammt."
+        "failed": "Import fehlgeschlagen — bitte überprüfen Sie, ob die ZIP-Datei aus dem ChatGPT-Datenexport stammt.",
+        "importSuccess": "Import erfolgreich: {count} Unterhaltungen wurden importiert.",
+        "importSuccessWithAssets": "Import erfolgreich: {count} Unterhaltungen und {assets} Assets wurden importiert."
       },
       "progress": {
         "uploading": "Ausgewählte Archive werden hochgeladen…",
@@ -410,11 +556,14 @@
         "replace": "Löscht alle vorhandenen Unterhaltungen und importiert nur die ausgewählten Archive.",
         "clone": "Importiert fehlende Einträge und behält beide Versionen bei Zeitstempel-Differenzen."
       },
+      "firstImportHint": "Starten Sie mit dem ersten Import. Strategien werden angezeigt, sobald bereits Unterhaltungen vorhanden sind.",
       "pendingFilesReady": "{count} per Drag-and-drop bereitgestellte ZIP-Datei(en) bereit.",
       "importDropped": "Bereitgestellte Dateien importieren ({count})",
       "multipleHint": "Sie können mehrere Exporte gleichzeitig auswählen.",
       "copyArchiveName": "Dateiname kopieren",
       "progressAria": "Fortschritt beim Unterhaltungsimport",
+      "successTitle": "Import erfolgreich",
+      "successSummary": "{count} Unterhaltungen wurden importiert.",
       "completeNoChanges": "Alles aktuell.",
       "viewConversations": "Unterhaltungen ansehen",
       "importMore": "Mehr importieren"
