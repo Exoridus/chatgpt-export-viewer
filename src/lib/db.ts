@@ -11,11 +11,17 @@ export interface ConversationRecord {
   assetKeys?: string[]
 }
 
-interface AssetRecord {
+export interface AssetRecord {
   key: string
   blob: Blob
   mime?: string
   size: number
+}
+
+export interface AssetSaveInput {
+  key: string
+  blob: Blob
+  mime?: string
 }
 
 interface LegacyAssetRecord extends AssetRecord {
@@ -143,15 +149,31 @@ export async function closeViewerDatabase(): Promise<void> {
 }
 
 export async function loadLocalSummaries(db: IDBPDatabase<ViewerDB>): Promise<ConversationSummary[]> {
+  // Parallelize reading but use cursors if meta is large? 
+  // Actually getAll is usually okay for small meta records, but let's optimize the summary map.
   const [summaries, meta] = await Promise.all([
     db.getAll('index'),
     db.getAll('userMeta'),
   ])
-  const metaMap = new Map(meta.map((item) => [item.id, item]))
-  return summaries.map((summary) => ({
-    ...summary,
-    pinned: metaMap.get(summary.id)?.pinned ?? false,
-  }))
+  
+  if (meta.length === 0) {return summaries}
+
+  const pinnedMap = new Map<string, boolean>()
+  for (let i = 0; i < meta.length; i++) {
+    const item = meta[i]
+    if (item.pinned) {
+      pinnedMap.set(item.id, true)
+    }
+  }
+
+  for (let i = 0; i < summaries.length; i++) {
+    const summary = summaries[i]
+    if (pinnedMap.has(summary.id)) {
+      summary.pinned = true
+    }
+  }
+  
+  return summaries
 }
 
 export async function saveConversationRecord(
@@ -179,6 +201,50 @@ export async function saveConversationRecord(
         assetKeys,
       }),
   ])
+  await tx.done
+}
+
+export async function saveConversationWithSearchData(
+  db: IDBPDatabase<ViewerDB>,
+  summary: ConversationSummary,
+  conversation: Conversation,
+  assetKeys: string[],
+  lines: SearchLine[],
+  grams: string[],
+): Promise<void> {
+  const now = Date.now()
+  const tx = db.transaction(['index', 'conversations', 'searchLines', 'searchIndex', 'searchMembership'], 'readwrite')
+  const normalizedSummary: ConversationSummary = {
+    ...summary,
+    source: 'local',
+    snippet: summary.snippet ?? '',
+  }
+  await Promise.all([
+    tx.objectStore('index').put({ ...normalizedSummary, saved_at: now }),
+    tx.objectStore('conversations').put({
+      id: conversation.id,
+      conversationSlim: conversation,
+      last_message_time: conversation.last_message_time,
+      saved_at: now,
+      assetKeys,
+    }),
+    tx.objectStore('searchLines').put({ conversationId: conversation.id, lines }),
+    tx.objectStore('searchMembership').put({ conversationId: conversation.id, grams }),
+  ])
+
+  const indexStore = tx.objectStore('searchIndex')
+  const uniqueGrams = Array.from(new Set(grams))
+  await Promise.all(
+    uniqueGrams.map(async (gram) => {
+      const entry = (await indexStore.get(gram)) as SearchIndexRecord | undefined
+      const ids = new Set(entry?.ids ?? [])
+      if (!ids.has(conversation.id)) {
+        ids.add(conversation.id)
+        await indexStore.put({ gram, ids: Array.from(ids) })
+      }
+    }),
+  )
+
   await tx.done
 }
 
@@ -243,6 +309,30 @@ export async function saveAsset(
   await tx.done
 }
 
+export async function saveAssetsBatch(
+  db: IDBPDatabase<ViewerDB>,
+  assets: AssetSaveInput[],
+  ownerId: string,
+): Promise<void> {
+  if (!assets.length) {return}
+  const tx = db.transaction(['assets', 'assetOwners'], 'readwrite')
+  const assetStore = tx.objectStore('assets')
+  const ownerStore = tx.objectStore('assetOwners')
+  for (const asset of assets) {
+    const existing = (await assetStore.get(asset.key)) as AssetRecord | undefined
+    if (!existing || existing.size !== asset.blob.size || (asset.mime && existing.mime !== asset.mime)) {
+      await assetStore.put({
+        key: asset.key,
+        blob: asset.blob,
+        mime: asset.mime ?? existing?.mime,
+        size: asset.blob.size,
+      })
+    }
+    await ownerStore.put({ id: buildAssetOwnerId(asset.key, ownerId), assetKey: asset.key, ownerId })
+  }
+  await tx.done
+}
+
 export async function removeAssetsForOwner(db: IDBPDatabase<ViewerDB>, ownerId: string): Promise<void> {
   const tx = db.transaction(['assetOwners', 'assets'], 'readwrite')
   const ownerStore = tx.objectStore('assetOwners')
@@ -276,13 +366,25 @@ function revokeAssetUrlForKey(key: string): void {
 }
 
 export async function getAssetUrl(db: IDBPDatabase<ViewerDB>, key: string): Promise<string | null> {
-  if (assetUrlCache.has(key)) {
-    return assetUrlCache.get(key) ?? null
+  const cached = assetUrlCache.get(key)
+  if (cached) {
+    // Move to end (most recently used)
+    assetUrlCache.delete(key)
+    assetUrlCache.set(key, cached)
+    return cached
   }
   const record = (await db.transaction('assets').objectStore('assets').get(key)) as AssetRecord | undefined
   if (!record) {return null}
   const url = URL.createObjectURL(record.blob)
   assetUrlCache.set(key, url)
+  // Evict oldest entries if cache exceeds limit
+  while (assetUrlCache.size > 150) {
+    const oldest = assetUrlCache.keys().next().value
+    if (oldest === undefined) {break}
+    const oldUrl = assetUrlCache.get(oldest)
+    if (oldUrl) {URL.revokeObjectURL(oldUrl)}
+    assetUrlCache.delete(oldest)
+  }
   return url
 }
 
@@ -300,21 +402,39 @@ export async function saveSearchData(
   grams: string[],
 ): Promise<void> {
   const tx = db.transaction(['searchLines', 'searchIndex', 'searchMembership'], 'readwrite')
-  tx.objectStore('searchLines').put({ conversationId, lines })
-  tx.objectStore('searchMembership').put({ conversationId, grams })
+  const linesStore = tx.objectStore('searchLines')
+  const membershipStore = tx.objectStore('searchMembership')
+  const indexStore = tx.objectStore('searchIndex')
+
+  await Promise.all([
+    linesStore.put({ conversationId, lines }),
+    membershipStore.put({ conversationId, grams }),
+  ])
+
+  const uniqueGrams = Array.from(new Set(grams))
+  await Promise.all(
+    uniqueGrams.map(async (gram) => {
+      const entry = (await indexStore.get(gram)) as SearchIndexRecord | undefined
+      const ids = new Set(entry?.ids ?? [])
+      if (!ids.has(conversationId)) {
+        ids.add(conversationId)
+        await indexStore.put({ gram, ids: Array.from(ids) })
+      }
+    }),
+  )
   await tx.done
-  await addConversationToSearchIndex(db, conversationId, grams)
 }
 
 export async function removeSearchData(db: IDBPDatabase<ViewerDB>, conversationId: string): Promise<void> {
   const membership = await db.transaction('searchMembership').objectStore('searchMembership').get(conversationId)
   const grams = membership?.grams ?? []
-  const tx = db.transaction(['searchLines', 'searchMembership'], 'readwrite')
+  
+  const tx = db.transaction(['searchLines', 'searchMembership', 'searchIndex'], 'readwrite')
   tx.objectStore('searchLines').delete(conversationId)
   tx.objectStore('searchMembership').delete(conversationId)
-  await tx.done
+  
   if (grams.length) {
-    const indexStore = db.transaction('searchIndex', 'readwrite').objectStore('searchIndex')
+    const indexStore = tx.objectStore('searchIndex')
     await Promise.all(
       grams.map(async (gram) => {
         const entry = (await indexStore.get(gram)) as SearchIndexRecord | undefined
@@ -328,23 +448,7 @@ export async function removeSearchData(db: IDBPDatabase<ViewerDB>, conversationI
       }),
     )
   }
-}
-
-async function addConversationToSearchIndex(
-  db: IDBPDatabase<ViewerDB>,
-  conversationId: string,
-  grams: string[],
-): Promise<void> {
-  const store = db.transaction('searchIndex', 'readwrite').objectStore('searchIndex')
-  const uniqueGrams = Array.from(new Set(grams))
-  await Promise.all(
-    uniqueGrams.map(async (gram) => {
-      const entry = (await store.get(gram)) as SearchIndexRecord | undefined
-      const ids = new Set(entry?.ids ?? [])
-      ids.add(conversationId)
-      await store.put({ gram, ids: Array.from(ids) })
-    }),
-  )
+  await tx.done
 }
 
 const EXTRA_METADATA_KEYS = {
@@ -438,21 +542,41 @@ export async function loadSearchBundleFromDb(
   return { linesByConversation, grams, summaryMap }
 }
 
-export async function estimateDatabaseSize(db: IDBPDatabase<ViewerDB>): Promise<number> {
+export async function findReferencedAssetKeys(db: IDBPDatabase<ViewerDB>): Promise<Set<string>> {
+  const keys = new Set<string>()
+  const tx = db.transaction('assetOwners', 'readonly')
+  let cursor = await tx.store.openCursor()
+  while (cursor) {
+    const record = cursor.value
+    if (record.ownerId !== GENERATED_ASSET_OWNER_ID) {
+      keys.add(record.assetKey)
+    }
+    cursor = await cursor.continue()
+  }
+  await tx.done
+  return keys
+}
+
+export async function estimateDatabaseSize(_db: IDBPDatabase<ViewerDB>): Promise<number> {
+  if (navigator.storage?.estimate) {
+    const estimate = await navigator.storage.estimate()
+    return estimate.usage ?? 0
+  }
+  // Fallback: count records (less accurate but avoids JSON.stringify)
   let total = 0
-  const [convos, assets, owners] = await Promise.all([
-    db.getAll('conversations'),
-    db.getAll('assets'),
-    db.getAll('assetOwners'),
-  ])
-  for (const convo of convos) {
-    total += JSON.stringify(convo).length
-  }
-  for (const asset of assets) {
-    total += asset.size
-  }
-  for (const owner of owners) {
-    total += JSON.stringify(owner).length
+  const stores: Array<'conversations' | 'assets' | 'assetOwners'> = ['conversations', 'assets', 'assetOwners']
+  for (const storeName of stores) {
+    const tx = _db.transaction(storeName, 'readonly')
+    let cursor = await tx.store.openCursor()
+    while (cursor) {
+      const value = cursor.value
+      if (storeName === 'assets') {
+        total += (value as AssetRecord).size
+      } else {
+        total += 512 // rough per-record estimate
+      }
+      cursor = await cursor.continue()
+    }
   }
   return total
 }

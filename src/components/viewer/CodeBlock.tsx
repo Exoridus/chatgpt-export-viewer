@@ -1,8 +1,11 @@
 import clsx from 'clsx'
-import { Check, Copy, WrapText } from 'lucide-react'
+import { Check, ChevronDown, Copy, WrapText } from 'lucide-react'
 import type { Language } from 'prism-react-renderer'
 import { Highlight, Prism, themes } from 'prism-react-renderer'
-import { useEffect, useMemo, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
+
+import { usePreferences } from '../../state/PreferencesContext'
+import styles from './CodeBlock.module.scss'
 
 interface CodeBlockProps {
   text: string
@@ -108,11 +111,45 @@ const aliasMap: Record<string, keyof typeof componentLoaders> = {
 const loadedComponents = new Set<string>()
 const languageLoadTasks = new Map<string, Promise<void>>()
 
-export function CodeBlock({ text, lang, highlightLine }: CodeBlockProps) {
+export const CodeBlock = memo(function CodeBlock({ text, lang, highlightLine }: CodeBlockProps) {
+  const { viewerPreferences, t } = usePreferences()
   const [languageReady, setLanguageReady] = useState(false)
   const [wrapLines, setWrapLines] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [collapsed, setCollapsed] = useState(viewerPreferences.collapseCodeBlocks)
   const resolvedLanguage = useMemo(() => resolveLanguage(lang), [lang])
+  const lineCount = useMemo(() => text.split(/\r?\n/).length, [text])
+  const resolvedAppTheme = useMemo<'dark' | 'light'>(() => {
+    if (viewerPreferences.appTheme === 'dark' || viewerPreferences.appTheme === 'light') {
+      return viewerPreferences.appTheme
+    }
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+    }
+    return 'dark'
+  }, [viewerPreferences.appTheme])
+  const effectiveThemeKey = viewerPreferences.codeThemeFollowAppTheme
+    ? (resolvedAppTheme === 'light' ? 'a11yLight' : 'a11yDark')
+    : viewerPreferences.codeTheme
+  const codeTheme = useMemo(() => {
+    const themeMap = {
+      a11yDark: themes.gruvboxMaterialDark,
+      a11yLight: themes.gruvboxMaterialLight,
+      monokaiSublime: themes.okaidia,
+      idea: themes.vsLight,
+      oneDark: themes.oneDark,
+      oneLight: themes.oneLight,
+      github: themes.github,
+      nightOwl: themes.nightOwl,
+      nightOwlLight: themes.nightOwlLight,
+      shadesOfPurple: themes.shadesOfPurple,
+      duotoneDark: themes.duotoneDark,
+      duotoneLight: themes.duotoneLight,
+      vsDark: themes.vsDark,
+      vsLight: themes.vsLight,
+    } as const
+    return themeMap[effectiveThemeKey] ?? themes.oneDark
+  }, [effectiveThemeKey])
 
   useEffect(() => {
     let cancelled = false
@@ -127,91 +164,123 @@ export function CodeBlock({ text, lang, highlightLine }: CodeBlockProps) {
     }
   }, [resolvedLanguage])
 
+  useEffect(() => {
+    setCollapsed(viewerPreferences.collapseCodeBlocks)
+  }, [text, lang, viewerPreferences.collapseCodeBlocks])
+
   const lines = useMemo(() => text.split(/\r?\n/), [text])
   const displayText = useMemo(() => lines.join('\n'), [lines])
+  const headerLabel = lang?.trim() || resolvedLanguage
 
   return (
-    <div className={clsx('code-block', wrapLines && 'is-wrap')}>
-      {lang && <div className="code-block-lang">{lang}</div>}
-      <div className="code-block-toolbar">
-        <button
-          type="button"
-          className="icon-button code-tool-btn"
-          title={copied ? 'Copied' : 'Copy code'}
-          aria-label={copied ? 'Copied code block' : 'Copy code block'}
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(text)
-              setCopied(true)
-              window.setTimeout(() => setCopied(false), 1200)
-            } catch {
-              setCopied(false)
-            }
-          }}
-        >
-          {copied ? <Check size={13} /> : <Copy size={13} />}
-        </button>
-        <button
-          type="button"
-          className={clsx('icon-button code-tool-btn', wrapLines && 'active')}
-          title={wrapLines ? 'Disable line wrap' : 'Wrap long lines'}
-          aria-label={wrapLines ? 'Disable line wrap' : 'Wrap long lines'}
-          onClick={() => setWrapLines((prev) => !prev)}
-        >
-          <WrapText size={13} />
-        </button>
+    <div className={clsx(styles.codeBlock, wrapLines && styles.wrap)} data-code-block="true">
+      <div
+        className={styles.header}
+        role="button"
+        tabIndex={0}
+        aria-expanded={!collapsed}
+        onClick={() => setCollapsed((prev) => !prev)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            setCollapsed((prev) => !prev)
+          }
+        }}
+      >
+        <div className={styles.heading}>
+          <span className={styles.lang}>{headerLabel}</span>
+          <span className={styles.lines}>{lineCount} {t.viewer.lines}</span>
+        </div>
+        <div className={styles.toolbar}>
+          <button
+            type="button"
+            className={clsx('icon-button', styles.toolButton)}
+            title={copied ? t.viewer.copied : t.viewer.copyCode}
+            aria-label={copied ? t.viewer.copiedCodeBlock : t.viewer.copyCodeBlock}
+            onClick={async (event) => {
+              event.stopPropagation()
+              try {
+                await navigator.clipboard.writeText(text)
+                setCopied(true)
+                window.setTimeout(() => setCopied(false), 1200)
+              } catch {
+                setCopied(false)
+              }
+            }}
+          >
+            {copied ? <Check size={13} /> : <Copy size={13} />}
+          </button>
+          <button
+            type="button"
+            className={clsx('icon-button', styles.toolButton, wrapLines && 'active')}
+            title={wrapLines ? t.viewer.disableLineWrap : t.viewer.wrapLongLines}
+            aria-label={wrapLines ? t.viewer.disableLineWrap : t.viewer.wrapLongLines}
+            onClick={(event) => {
+              event.stopPropagation()
+              setWrapLines((prev) => !prev)
+            }}
+          >
+            <WrapText size={13} />
+          </button>
+          <span className={clsx(styles.chevron, collapsed && styles.chevronCollapsed)} aria-hidden="true">
+            <ChevronDown size={14} />
+          </span>
+        </div>
       </div>
-      <div className="code-block-preview">
-        {languageReady && resolvedLanguage !== 'text' ? (
-          <Highlight theme={themes.oneDark} code={displayText} language={resolvedLanguage as Language}>
-            {({ className, style, tokens, getLineProps, getTokenProps }) => (
-              <pre className={className} style={style}>
-                {tokens.map((line, lineIndex) => {
-                  const actualLine = lineIndex
-                  const isHit = typeof highlightLine === 'number' && actualLine === highlightLine
-                  const lineProps = getLineProps({ line, key: lineIndex })
-                  return (
-                    <div
-                      key={lineIndex}
-                      {...lineProps}
-                      className={clsx('code-line', lineProps.className, isHit && 'hit')}
-                    >
-                      <span className="code-line-number">{actualLine + 1}</span>
-                      <span className="code-line-content">
-                        {line.length === 0 ? (
-                          <span>&nbsp;</span>
-                        ) : (
-                          line.map((token, tokenIndex) => (
-                            <span key={tokenIndex} {...getTokenProps({ token, key: tokenIndex })} />
-                          ))
-                        )}
-                      </span>
-                    </div>
-                  )
-                })}
-              </pre>
-            )}
-          </Highlight>
-        ) : (
-          lines.map((line, idx) => {
-            const actualLine = idx
-            const isHit = typeof highlightLine === 'number' && actualLine === highlightLine
-            return (
-              <pre key={`${line}-${idx}`} className={clsx('code-line', isHit && 'hit')}>
-                <span className="code-line-number">{actualLine + 1}</span>
-                <code className="code-line-content">{line || '\u00A0'}</code>
-              </pre>
-            )
-          })
-        )}
-      </div>
+      {!collapsed && (
+        <div className={styles.preview}>
+          {languageReady && resolvedLanguage !== 'text' ? (
+            <Highlight theme={codeTheme} code={displayText} language={resolvedLanguage as Language}>
+              {({ className, style, tokens, getLineProps, getTokenProps }) => (
+                <pre className={className} style={style}>
+                  {tokens.map((line, lineIndex) => {
+                    const actualLine = lineIndex
+                    const isHit = typeof highlightLine === 'number' && actualLine === highlightLine
+                    const { key: _lineKey, ...lineProps } = getLineProps({ line, key: lineIndex })
+                    return (
+                      <div
+                        key={lineIndex}
+                        {...lineProps}
+                        className={clsx(styles.line, lineProps.className, isHit && styles.lineHit)}
+                      >
+                        <span className={styles.lineNumber}>{actualLine + 1}</span>
+                        <span className={styles.lineContent}>
+                          {line.length === 0 ? (
+                            <span>&nbsp;</span>
+                          ) : (
+                            line.map((token, tokenIndex) => {
+                              const { key: _tokenKey, ...tokenProps } = getTokenProps({ token, key: tokenIndex })
+                              return <span key={tokenIndex} {...tokenProps} />
+                            })
+                          )}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </pre>
+              )}
+            </Highlight>
+          ) : (
+            lines.map((line, idx) => {
+              const actualLine = idx
+              const isHit = typeof highlightLine === 'number' && actualLine === highlightLine
+              return (
+                <pre key={`${line}-${idx}`} className={clsx(styles.line, isHit && styles.lineHit)}>
+                  <span className={styles.lineNumber}>{actualLine + 1}</span>
+                  <code className={styles.lineContent}>{line || '\u00A0'}</code>
+                </pre>
+              )
+            })
+          )}
+        </div>
+      )}
     </div>
   )
-}
+})
 
 function resolveLanguage(lang?: string): keyof typeof componentLoaders {
   if (!lang) {
-    return 'text'
+    return 'markdown'
   }
   const key = lang.trim().toLowerCase()
   return aliasMap[key] ?? 'text'

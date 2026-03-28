@@ -3,15 +3,25 @@ import { CheckCircle2, Copy, UploadCloud, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useModalA11y } from '../../hooks/useModalA11y'
-import { type ImportMode,useAppData } from '../../state/AppDataContext'
+import { formatText } from '../../lib/i18n'
+import { type ImportMode, useAppData } from '../../state/AppDataContext'
+import { useImportExport } from '../../state/ImportExportContext'
+import { useNotification } from '../../state/NotificationContext'
+import { usePreferences } from '../../state/PreferencesContext'
+import styles from './ImportModal.module.scss'
 
 interface ImportModalProps {
   open: boolean
   onClose: () => void
+  pendingFiles?: File[]
+  onConsumePendingFiles?: () => void
 }
 
-export function ImportModal({ open, onClose }: ImportModalProps) {
-  const { importZips, importing, importProgress, resetImportProgress, pushNotice, storageAvailable, mergedIndex } = useAppData()
+export function ImportModal({ open, onClose, pendingFiles = [], onConsumePendingFiles }: ImportModalProps) {
+  const { importZips, storageAvailable, mergedIndex } = useAppData()
+  const { importing, importProgress, resetImportProgress } = useImportExport()
+  const { pushNotice } = useNotification()
+  const { t } = usePreferences()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [mode, setMode] = useState<ImportMode>('upsert')
@@ -24,10 +34,9 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
       }
     },
     disableClose: importing,
-    primaryActionSelector: '.primary',
+    primaryActionSelector: '[data-primary-action="true"]',
   })
-  const storageDisabledMessage =
-    'Browser storage is disabled — enable IndexedDB/localStorage access for this site to import conversations.'
+  const storageDisabledMessage = t.importer.storageDisabledSite
 
   useEffect(() => {
     if (!open) {
@@ -45,18 +54,25 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
   }, [importing, onClose, resetImportProgress])
 
   const handleFiles = useCallback(
-    (files: FileList | null) => {
+    (files: FileList | File[] | null) => {
       if (!storageAvailable) {return}
       if (!files || !files.length) {return}
-      const list = Array.from(files).filter((file) => file.name.toLowerCase().endsWith('.zip'))
+      const sourceFiles = Array.isArray(files) ? files : Array.from(files)
+      const list = sourceFiles.filter((file) => file.name.toLowerCase().endsWith('.zip'))
       if (!list.length) {
-        pushNotice('Only .zip archives from ChatGPT exports are supported.', 'warning')
+        pushNotice(t.importer.notifications.zipOnly, 'warning')
         return
       }
       void importZips(list, mode)
     },
-    [importZips, mode, pushNotice, storageAvailable],
+    [importZips, mode, pushNotice, storageAvailable, t.importer.notifications.zipOnly],
   )
+
+  const handlePendingFilesImport = useCallback(() => {
+    if (!pendingFiles.length) {return}
+    handleFiles(pendingFiles)
+    onConsumePendingFiles?.()
+  }, [handleFiles, onConsumePendingFiles, pendingFiles])
 
   const handleDrop = useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
@@ -108,58 +124,61 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
   if (importProgress.phase === 'saving' && total > 0) {
     const nextIndex = Math.min(processed + 1, total)
     conversationStatus =
-      processed >= total ? `Conversations ${processed}/${total}` : `Processing conversations ${nextIndex}/${total}`
+      processed >= total
+        ? formatText(t.importer.progress.conversationCount, { processed, total })
+        : formatText(t.importer.progress.processingConversationCount, { processed: nextIndex, total })
   } else if (importProgress.phase === 'complete' && total > 0) {
-    conversationStatus = `Conversations ${processed}/${total}`
+    conversationStatus = formatText(t.importer.progress.conversationCount, { processed, total })
   }
 
   let assetStatus: string | null = null
   if (assetsTotal && assetsTotal > 0) {
     const completedAssets = Math.min(assetsProcessed ?? 0, assetsTotal)
-    assetStatus = `Assets ${completedAssets}/${assetsTotal}`
+    assetStatus = formatText(t.importer.progress.assetCount, {
+      processed: completedAssets,
+      total: assetsTotal,
+    })
   }
   const archiveLine =
     typeof importProgress.currentArchiveIndex === 'number' && typeof importProgress.currentArchiveTotal === 'number'
       ? importProgress.currentArchiveIndex > 0
-        ? `Archive ${importProgress.currentArchiveIndex} of ${importProgress.currentArchiveTotal}`
+        ? formatText(t.importer.progress.archiveCount, {
+          index: importProgress.currentArchiveIndex,
+          total: importProgress.currentArchiveTotal,
+        })
         : null
       : null
   const archiveFileName = importProgress.currentArchiveName ?? null
 
-  const modeDescriptions: Record<ImportMode, string> = {
-    upsert: 'Imports newer conversations and adds conversations that do not exist yet.',
-    replace: 'Clears existing conversations and imports only the selected archives.',
-    clone: 'Imports missing conversations and keeps both versions when timestamps differ.',
-  }
   const modeOptions: Array<{ value: ImportMode; label: string }> = [
-    { value: 'upsert', label: 'Import newer and missing entries' },
-    { value: 'replace', label: 'Import and replace all existing entries' },
-    { value: 'clone', label: 'Import missing entries and clone when timestamps differ' },
+    { value: 'upsert', label: t.importer.mode.upsert },
+    { value: 'replace', label: t.importer.mode.replace },
+    { value: 'clone', label: t.importer.mode.clone },
   ]
   const modeSelectId = 'import-mode-select'
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Import conversations" onMouseDown={onOverlayMouseDown}>
-      <div className="import-modal" ref={containerRef}>
-        <header className="import-modal-header">
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-label={t.importer.title} onMouseDown={onOverlayMouseDown}>
+      <div className={styles.modal} ref={containerRef}>
+        <header className={styles.header}>
           <div>
-            <h2>Import Conversations</h2>
-            <p>Upload ChatGPT data export ZIP files</p>
+            <h2>{t.importer.title}</h2>
+            <p>{t.importer.subtitle}</p>
           </div>
           {!importing && (
-            <button className="icon-button modal-close-btn" onClick={handleClose} aria-label="Close import dialog">
+            <button className="icon-button modal-close-btn" onClick={handleClose} aria-label={t.actions.close}>
               <X size={16} />
             </button>
           )}
         </header>
-        {!storageAvailable && <p className="import-status warning">{storageDisabledMessage}</p>}
+        {!storageAvailable && <p className={clsx(styles.status, styles.statusWarning)}>{storageDisabledMessage}</p>}
         {showSelector && (
           <>
-            <div className="import-mode-field">
-              <label htmlFor={modeSelectId}>When importing conversations, use this strategy:</label>
+            <div className={styles.modeField}>
+              <label htmlFor={modeSelectId}>{t.importer.modeLabel}</label>
               <select
                 id={modeSelectId}
-                className="import-mode-select"
+                className={styles.modeSelect}
                 value={mode}
                 onChange={(event) => setMode(event.target.value as ImportMode)}
                 disabled={selectorDisabled}
@@ -172,13 +191,35 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
                 ))}
               </select>
             </div>
-            <p className="import-mode-help">{modeDescriptions[mode]}</p>
-            {importProgress.phase === 'error' && <p className="import-status error">{importProgress.message}</p>}
-            <button className="primary" onClick={startFilePicker} disabled={selectorDisabled} title={dropZoneTitle}>
-              Select ZIPs
+            <p className={styles.modeHelp}>{t.importer.modeDescription[mode]}</p>
+            {importProgress.phase === 'error' && <p className={clsx(styles.status, styles.statusError)}>{importProgress.message}</p>}
+            {pendingFiles.length > 0 && (
+              <>
+                <p className={styles.modeHelp}>
+                  {formatText(t.importer.pendingFilesReady, { count: pendingFiles.length })}
+                </p>
+                <button
+                  className="primary"
+                  data-primary-action="true"
+                  onClick={handlePendingFilesImport}
+                  disabled={selectorDisabled}
+                  title={dropZoneTitle}
+                >
+                  {formatText(t.importer.importDropped, { count: pendingFiles.length })}
+                </button>
+              </>
+            )}
+            <button
+              className="primary"
+              data-primary-action="true"
+              onClick={startFilePicker}
+              disabled={selectorDisabled}
+              title={dropZoneTitle}
+            >
+              {t.importer.selectFiles}
             </button>
             <div
-              className={clsx('drop-zone', isDragging && 'is-dragging', !storageAvailable && 'is-disabled')}
+              className={clsx(styles.dropZone, isDragging && styles.dropZoneDragging, !storageAvailable && styles.dropZoneDisabled)}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
@@ -190,22 +231,22 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
               onKeyDown={(event) => storageAvailable && event.key === 'Enter' && startFilePicker()}
             >
               <UploadCloud size={32} aria-hidden="true" />
-              <p>Drag & drop ZIP files here</p>
-              <p className="drop-zone-hint">You can select multiple exports at once.</p>
+              <p>{t.importer.dropZone}</p>
+              <p className={styles.dropZoneHint}>{t.importer.multipleHint}</p>
             </div>
           </>
         )}
         {!showSelector && !showSuccess && (
-          <div className="import-progress">
-            {archiveLine && <p className="progress-line progress-meta">{archiveLine}</p>}
+          <div className={styles.progress}>
+            {archiveLine && <p className={clsx(styles.progressLine, styles.progressMeta)}>{archiveLine}</p>}
             {archiveFileName && (
-              <div className="progress-file-row" title={archiveFileName}>
-                <p className="progress-file-name">{archiveFileName}</p>
+              <div className={styles.progressFileRow} title={archiveFileName}>
+                <p className={styles.progressFileName}>{archiveFileName}</p>
                 <button
                   type="button"
-                  className="icon-button progress-copy-btn"
-                  title="Copy archive filename"
-                  aria-label="Copy archive filename"
+                  className={clsx('icon-button', styles.progressCopyButton)}
+                  title={t.importer.copyArchiveName}
+                  aria-label={t.importer.copyArchiveName}
                   onClick={async () => {
                     try {
                       await navigator.clipboard.writeText(archiveFileName)
@@ -218,29 +259,31 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
                 </button>
               </div>
             )}
-            <p className="progress-line">{conversationStatus}</p>
+            <p className={styles.progressLine}>{conversationStatus}</p>
             <div
-              className="progress-bar"
+              className={styles.progressBar}
               role="progressbar"
-              aria-label="Conversation import progress"
+              aria-label={t.importer.progressAria}
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={progressPercent ?? undefined}
             >
               <div
-                className={clsx('progress-bar-fill', progressPercent === null && 'is-indeterminate')}
+                className={clsx(styles.progressBarFill, progressPercent === null && styles.progressBarFillIndeterminate)}
                 style={{ width: progressFillWidth }}
               />
             </div>
-            {assetStatus && <p className="progress-line progress-meta">{assetStatus}</p>}
+            {assetStatus && <p className={clsx(styles.progressLine, styles.progressMeta)}>{assetStatus}</p>}
           </div>
         )}
         {showSuccess && (
-          <div className="import-success">
+          <div className={styles.success}>
             <CheckCircle2 size={32} aria-hidden="true" />
-            <p className="import-success-title">{importProgress.resultCount ? 'Import complete.' : 'Everything is up to date.'}</p>
-            <p className="progress-meta">{importProgress.message}</p>
-            <div className="import-success-actions">
+            <p className={styles.successTitle}>
+              {importProgress.resultCount ? t.importer.status.complete : t.importer.completeNoChanges}
+            </p>
+            <p className={styles.progressMeta}>{importProgress.message}</p>
+            <div className={styles.successActions}>
               <button
                 className="primary"
                 onClick={() => {
@@ -251,10 +294,10 @@ export function ImportModal({ open, onClose }: ImportModalProps) {
                   }
                 }}
               >
-                View conversations
+                {t.importer.viewConversations}
               </button>
               <button className="secondary" onClick={resetImportProgress} disabled={importing}>
-                Import more
+                {t.importer.importMore}
               </button>
             </div>
           </div>

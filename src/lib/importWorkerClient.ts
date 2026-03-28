@@ -39,23 +39,30 @@ export async function parseExportZipsInWorker(
   })
 
   return new Promise<ImportBundle>((resolve, reject) => {
+    let active = true
     worker.onmessage = (event: MessageEvent<WorkerResponseMessage>) => {
+      if (!active) {return}
       const message = event.data
       if (message.type === 'progress') {
         options.onProgress?.(message.progress)
         return
       }
       if (message.type === 'done') {
-        worker.terminate()
+        active = false
+        // Delay termination slightly to ensure all messages are processed
+        setTimeout(() => worker.terminate(), 50)
         resolve(message.bundle)
         return
       }
       if (message.type === 'error') {
+        active = false
         worker.terminate()
         reject(new Error(message.error))
       }
     }
     worker.onerror = (event) => {
+      if (!active) {return}
+      active = false
       worker.terminate()
       reject(new Error(event.message || 'Import worker failed'))
     }

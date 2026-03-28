@@ -131,24 +131,20 @@ export function extractAssetsJson(html: string): AssetsIndex {
   if (markerIndex === -1) return {}
   const braceIndex = html.indexOf('{', markerIndex)
   if (braceIndex === -1) return {}
-  let depth = 0
-  let end = braceIndex
-  while (end < html.length) {
-    const char = html[end]
-    if (char === '{') depth += 1
-    if (char === '}') {
-      depth -= 1
-      if (depth === 0) {
-        end += 1
-        break
-      }
-    }
-    end += 1
-  }
+  const rawJsonString = extractBalancedExpression(html, braceIndex, '{', '}')
+  if (!rawJsonString) return {}
+  const jsonString = decodeHtmlEntities(rawJsonString)
   try {
-    const jsonString = html.slice(braceIndex, end)
     return JSON.parse(jsonString) as AssetsIndex
   } catch (error) {
+    const normalized = normalizeJsonLikeObjectLiteral(jsonString)
+    if (normalized) {
+      try {
+        return JSON.parse(normalized) as AssetsIndex
+      } catch (fallbackError) {
+        console.warn('Failed fallback parse for assets JSON from chat.html', fallbackError)
+      }
+    }
     console.warn('Failed to parse assets JSON from chat.html', error)
     return {}
   }
@@ -160,28 +156,320 @@ export function extractConversationsFromChat(html: string): RawConversation[] | 
   if (markerIndex === -1) return null
   const braceIndex = html.indexOf('[', markerIndex)
   if (braceIndex === -1) return null
-  let depth = 0
-  let end = braceIndex
-  while (end < html.length) {
-    const char = html[end]
-    if (char === '[') depth += 1
-    if (char === ']') {
-      depth -= 1
-      if (depth === 0) {
-        end += 1
-        break
-      }
-    }
-    end += 1
-  }
-  if (depth !== 0) return null
-  const jsonString = html.slice(braceIndex, end)
+  const jsonString = extractBalancedExpression(html, braceIndex, '[', ']')
+  if (!jsonString) return null
   try {
     return JSON.parse(jsonString) as RawConversation[]
   } catch (error) {
     console.warn('Failed to parse conversations from chat.html', error)
     return null
   }
+}
+
+function extractBalancedExpression(html: string, start: number, open: string, close: string): string | null {
+  let depth = 0
+  let i = start
+  let inString = false
+  let stringChar = ''
+  let escaped = false
+
+  while (i < html.length) {
+    const char = html[i]
+    if (escaped) {
+      escaped = false
+    } else if (char === '\\') {
+      escaped = true
+    } else if (inString) {
+      if (char === stringChar) {
+        inString = false
+      }
+    } else if (char === '"' || char === "'" || char === '`') {
+      inString = true
+      stringChar = char
+    } else if (char === open) {
+      depth += 1
+    } else if (char === close) {
+      depth -= 1
+      if (depth === 0) {
+        return html.slice(start, i + 1)
+      }
+    }
+    i += 1
+  }
+  return null
+}
+
+function normalizeJsonLikeObjectLiteral(input: string): string | null {
+  const noComments = stripJsComments(input)
+  const withDoubleQuotes = normalizeStringQuotes(noComments)
+  if (!withDoubleQuotes) {return null}
+  const withQuotedKeys = quoteBareObjectKeys(withDoubleQuotes)
+  return removeTrailingCommas(withQuotedKeys)
+}
+
+function decodeHtmlEntities(input: string): string {
+  const namedMap: Record<string, string> = {
+    '&quot;': '"',
+    '&apos;': '\'',
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+  }
+  const withNamed = input.replace(/&(quot|apos|amp|lt|gt);/g, (entity) => namedMap[entity] ?? entity)
+  const withDecimal = withNamed.replace(/&#(\d+);/g, (_full, value) => {
+    const code = Number.parseInt(value, 10)
+    if (!Number.isFinite(code) || code < 0 || code > 0x10ffff) {return _full}
+    try {
+      return String.fromCodePoint(code)
+    } catch {
+      return _full
+    }
+  })
+  return withDecimal.replace(/&#x([0-9a-fA-F]+);/g, (_full, value) => {
+    const code = Number.parseInt(value, 16)
+    if (!Number.isFinite(code) || code < 0 || code > 0x10ffff) {return _full}
+    try {
+      return String.fromCodePoint(code)
+    } catch {
+      return _full
+    }
+  })
+}
+
+function stripJsComments(input: string): string {
+  let result = ''
+  let inString = false
+  let quote = ''
+  let escaped = false
+
+  for (let i = 0; i < input.length; i += 1) {
+    const char = input[i]
+    const next = input[i + 1]
+    if (escaped) {
+      result += char
+      escaped = false
+      continue
+    }
+    if (inString) {
+      result += char
+      if (char === '\\') {
+        escaped = true
+      } else if (char === quote) {
+        inString = false
+        quote = ''
+      }
+      continue
+    }
+    if (char === '"' || char === '\'') {
+      inString = true
+      quote = char
+      result += char
+      continue
+    }
+    if (char === '/' && next === '/') {
+      i += 2
+      while (i < input.length && input[i] !== '\n') {
+        i += 1
+      }
+      if (i < input.length) {
+        result += input[i]
+      }
+      continue
+    }
+    if (char === '/' && next === '*') {
+      i += 2
+      while (i + 1 < input.length && !(input[i] === '*' && input[i + 1] === '/')) {
+        i += 1
+      }
+      i += 1
+      continue
+    }
+    result += char
+  }
+  return result
+}
+
+function normalizeStringQuotes(input: string): string | null {
+  let result = ''
+  let inString = false
+  let quote = ''
+  let escaped = false
+
+  for (let i = 0; i < input.length; i += 1) {
+    const char = input[i]
+    if (!inString) {
+      if (char === '`') {
+        return null
+      }
+      if (char === '\'') {
+        inString = true
+        quote = '\''
+        result += '"'
+        continue
+      }
+      if (char === '"') {
+        inString = true
+        quote = '"'
+      }
+      result += char
+      continue
+    }
+
+    if (escaped) {
+      if (quote === '\'' && char === '\'') {
+        result += '\''
+      } else if (quote === '\'' && char === '"') {
+        result += '\\"'
+      } else {
+        result += `\\${char}`
+      }
+      escaped = false
+      continue
+    }
+
+    if (char === '\\') {
+      escaped = true
+      continue
+    }
+
+    if (char === quote) {
+      inString = false
+      quote = ''
+      result += '"'
+      continue
+    }
+
+    if (quote === '\'' && char === '"') {
+      result += '\\"'
+      continue
+    }
+
+    result += char
+  }
+
+  if (inString || escaped) {
+    return null
+  }
+  return result
+}
+
+function quoteBareObjectKeys(input: string): string {
+  let result = ''
+  const stack: Array<'object' | 'array'> = []
+  let inString = false
+  let escaped = false
+  let expectingKey = false
+
+  for (let i = 0; i < input.length; i += 1) {
+    const char = input[i]
+    if (inString) {
+      result += char
+      if (escaped) {
+        escaped = false
+      } else if (char === '\\') {
+        escaped = true
+      } else if (char === '"') {
+        inString = false
+      }
+      continue
+    }
+
+    if (char === '"') {
+      inString = true
+      result += char
+      continue
+    }
+
+    if (char === '{') {
+      stack.push('object')
+      expectingKey = true
+      result += char
+      continue
+    }
+    if (char === '[') {
+      stack.push('array')
+      expectingKey = false
+      result += char
+      continue
+    }
+    if (char === '}' || char === ']') {
+      stack.pop()
+      expectingKey = false
+      result += char
+      continue
+    }
+    if (char === ',') {
+      result += char
+      expectingKey = stack[stack.length - 1] === 'object'
+      continue
+    }
+    if (char === ':') {
+      result += char
+      expectingKey = false
+      continue
+    }
+
+    if (stack[stack.length - 1] === 'object' && expectingKey) {
+      if (/\s/.test(char)) {
+        result += char
+        continue
+      }
+      if (/[A-Za-z_$]/.test(char)) {
+        let end = i + 1
+        while (end < input.length && /[A-Za-z0-9_$]/.test(input[end])) {
+          end += 1
+        }
+        const key = input.slice(i, end)
+        result += `"${key}"`
+        i = end - 1
+        continue
+      }
+    }
+
+    result += char
+  }
+  return result
+}
+
+function removeTrailingCommas(input: string): string {
+  let result = ''
+  let inString = false
+  let escaped = false
+
+  for (let i = 0; i < input.length; i += 1) {
+    const char = input[i]
+    if (inString) {
+      result += char
+      if (escaped) {
+        escaped = false
+      } else if (char === '\\') {
+        escaped = true
+      } else if (char === '"') {
+        inString = false
+      }
+      continue
+    }
+
+    if (char === '"') {
+      inString = true
+      result += char
+      continue
+    }
+
+    if (char === ',') {
+      let j = i + 1
+      while (j < input.length && /\s/.test(input[j])) {
+        j += 1
+      }
+      const next = input[j]
+      if (next === '}' || next === ']') {
+        continue
+      }
+    }
+
+    result += char
+  }
+  return result
 }
 
 export function normalizePath(input: string): string {

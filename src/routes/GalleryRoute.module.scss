@@ -1,0 +1,81 @@
+@use '../styles/tokens' as *;
+@use '../styles/mixins' as *;
+
+.route {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1rem 1.2rem;
+}
+
+.header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+
+  h2 {
+    margin: 0 0 0.25rem;
+  }
+
+  p {
+    margin: 0;
+    color: $text-subtle;
+  }
+
+  @include light-theme {
+    p {
+      color: rgba(21, 32, 51, 0.68);
+    }
+  }
+}
+
+.filter {
+  display: inline-flex;
+  gap: 0.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.2rem;
+
+  @include light-theme {
+    border-color: rgba(21, 32, 51, 0.08);
+    background: rgba(21, 32, 51, 0.04);
+  }
+}
+
+.filterButton {
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: $text-subtle;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.4rem 0.7rem;
+
+  @include light-theme {
+    color: rgba(21, 32, 51, 0.66);
+  }
+}
+
+.filterButtonActive {
+  background: rgba(255, 255, 255, 0.14);
+  color: $text-primary;
+
+  @include light-theme {
+    background: rgba(21, 32, 51, 0.1);
+    color: #152033;
+  }
+}
+
+.empty {
+  margin: 0;
+  color: $text-subtle;
+
+  @include light-theme {
+    color: rgba(21, 32, 51, 0.68);
+  }
+}

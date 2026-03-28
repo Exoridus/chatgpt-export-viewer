@@ -53,4 +53,82 @@ describe('parseExportZips', () => {
     expect(result.conversations).toHaveLength(1)
     expect(result.assets.size).toBe(0)
   })
+
+  it('parses JS-style assetsJson literals from chat.html', async () => {
+    const conversation = {
+      conversation_id: 'conv-js-assets',
+      title: 'JS Assets',
+      current_node: 'n1',
+      mapping: {
+        n1: {
+          id: 'n1',
+          message: {
+            id: 'm1',
+            author: { role: 'assistant' },
+            content: {
+              content_type: 'multimodal_text',
+              parts: [{ content_type: 'image_asset_pointer', asset_pointer: 'sediment://asset-1' }],
+            },
+          },
+        },
+      },
+    }
+    const chatHtml = `
+      <script>
+        var jsonData = ${JSON.stringify([conversation])};
+        var assetsJson = {
+          // legacy object literal style
+          'sediment://asset-1': {
+            file_path: 'assets/example.png',
+            mime_type: 'image/png',
+          },
+        };
+      </script>
+    `
+    const zipBytes = zipSync({
+      'chat.html': strToU8(chatHtml),
+      'assets/example.png': new Uint8Array([1, 2, 3, 4]),
+    })
+    const zipFile = new File([zipBytes], 'js-assets.zip', { type: 'application/zip' })
+    const result = await parseExportZips([zipFile])
+
+    expect(result.conversations).toHaveLength(1)
+    expect(result.assets.has('assets/example.png')).toBe(true)
+  })
+
+  it('parses HTML-entity encoded assetsJson literals from chat.html', async () => {
+    const conversation = {
+      conversation_id: 'conv-encoded-assets',
+      title: 'Encoded Assets',
+      current_node: 'n1',
+      mapping: {
+        n1: {
+          id: 'n1',
+          message: {
+            id: 'm1',
+            author: { role: 'assistant' },
+            content: {
+              content_type: 'multimodal_text',
+              parts: [{ content_type: 'image_asset_pointer', asset_pointer: 'sediment://asset-entity' }],
+            },
+          },
+        },
+      },
+    }
+    const chatHtml = `
+      <script>
+        var jsonData = ${JSON.stringify([conversation])};
+        var assetsJson = {&quot;sediment://asset-entity&quot;:{&quot;file_path&quot;:&quot;assets/encoded.png&quot;,&quot;mime_type&quot;:&quot;image/png&quot;}};
+      </script>
+    `
+    const zipBytes = zipSync({
+      'chat.html': strToU8(chatHtml),
+      'assets/encoded.png': new Uint8Array([9, 8, 7, 6]),
+    })
+    const zipFile = new File([zipBytes], 'encoded-assets.zip', { type: 'application/zip' })
+    const result = await parseExportZips([zipFile])
+
+    expect(result.conversations).toHaveLength(1)
+    expect(result.assets.has('assets/encoded.png')).toBe(true)
+  })
 })

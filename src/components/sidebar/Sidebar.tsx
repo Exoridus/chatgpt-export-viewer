@@ -1,13 +1,15 @@
 import clsx from 'clsx'
-import { CircleHelp, Pin, Search, Settings } from 'lucide-react'
-import { useMemo } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { type ListChildComponentProps, VariableSizeList as List } from 'react-window'
+import { CircleHelp, Search, Settings } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { type NavigateFunction, useLocation, useNavigate } from 'react-router-dom'
+import { List, type RowComponentProps } from 'react-window'
 
-import { useWindowSize } from '../../hooks/useWindowSize'
 import { formatShortDate } from '../../lib/date'
 import { useAppData } from '../../state/AppDataContext'
+import { useImportExport } from '../../state/ImportExportContext'
+import { usePreferences } from '../../state/PreferencesContext'
 import type { ConversationSummary } from '../../types'
+import styles from './Sidebar.module.scss'
 
 interface SidebarProps {
   onOpenUpload: () => void
@@ -18,17 +20,15 @@ interface SidebarProps {
   onCloseMobile: () => void
 }
 
-interface HeaderItem {
-  type: 'header'
-  label: string
-}
+const ITEM_HEIGHT = 58
 
-interface ConversationItemRow {
-  type: 'conversation'
-  data: ConversationSummary
+interface SidebarRowData {
+  items: ConversationSummary[]
+  navigate: NavigateFunction
+  noPreviewLabel: string
+  onCloseMobile: () => void
+  selectedId: string | null
 }
-
-type ListItem = HeaderItem | ConversationItemRow
 
 export function Sidebar({
   onOpenUpload,
@@ -38,100 +38,70 @@ export function Sidebar({
   isMobileOpen,
   onCloseMobile,
 }: SidebarProps) {
-  const { mergedIndex, pinConversation, importing, localIndex } = useAppData()
+  const { mergedIndex, localIndex, generatedAssets } = useAppData()
+  const { importing } = useImportExport()
+  const { t } = usePreferences()
   const { pathname } = useLocation()
   const navigate = useNavigate()
-  const { height, width } = useWindowSize()
-  const isGalleryRoute = pathname === '/gallery'
+  const isGalleryRoute = pathname === '/gallery' || pathname === '/artifacts'
   const selectedId = pathname.startsWith('/') && pathname.length > 1 && !isGalleryRoute ? pathname.slice(1) : null
-  const listHeight = Math.max(180, height - 330)
-  const listWidth = Math.min(296, Math.max(220, width - 56))
   const hasConversations = mergedIndex.length > 0
   const lastExportTimestamp = localIndex.reduce<number>((latest, item) => Math.max(latest, item.saved_at ?? 0), 0)
-  const lastExportLabel = lastExportTimestamp > 0 ? formatShortDate(lastExportTimestamp) : 'unknown'
+  const lastExportLabel = lastExportTimestamp > 0 ? formatShortDate(lastExportTimestamp) : t.sidebar.unknown
 
-  const items: ListItem[] = useMemo(() => {
+  // Flat list: pinned items sort to the top, no separate section headers.
+  const items: ConversationSummary[] = useMemo(() => {
     const pinned = mergedIndex.filter((item) => item.pinned)
-    const others = mergedIndex.filter((item) => !item.pinned)
-    const list: ListItem[] = []
-    if (pinned.length) {
-      list.push({ type: 'header', label: `Pinned (${pinned.length})` })
-      pinned.forEach((conversation) => list.push({ type: 'conversation', data: conversation }))
-    }
-    if (others.length) {
-      list.push({ type: 'header', label: `All (${others.length})` })
-      others.forEach((conversation) => list.push({ type: 'conversation', data: conversation }))
-    }
-    return list
+    const unpinned = mergedIndex.filter((item) => !item.pinned)
+    return [...pinned, ...unpinned]
   }, [mergedIndex])
 
-  const getItemSize = (index: number) => (items[index]?.type === 'header' ? 34 : 74)
+  // Measure the list container height so react-window can fill the available
+  // space while the width tracks the parent nav directly.
+  const listContainerRef = useRef<HTMLDivElement>(null)
+  const [listHeight, setListHeight] = useState(400)
+  useEffect(() => {
+    const el = listContainerRef.current
+    if (!el) {return}
+    const update = () => setListHeight(el.clientHeight)
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
-  const rowRenderer = ({ index, style, data }: ListChildComponentProps<ListItem[]>) => {
-    const item = data[index]
-    if (item.type === 'header') {
-      return (
-        <div className="sidebar-header" style={style}>
-          {item.label}
-        </div>
-      )
-    }
-    const conversation = item.data
-    const isSelected = conversation.id === selectedId
-    return (
-      <div className={clsx('sidebar-item', isSelected && 'selected')} style={style}>
-        <button
-          className="sidebar-item-main"
-          onClick={() => {
-            navigate(`/${conversation.id}`)
-            onCloseMobile()
-          }}
-        >
-          <div className="sidebar-item-line">
-            <span className="sidebar-item-title" title={conversation.title}>
-              {conversation.title}
-            </span>
-            <span className="sidebar-item-meta">{formatShortDate(conversation.last_message_time)}</span>
-          </div>
-          <div className="sidebar-item-snippet" title={conversation.snippet || 'No preview available'}>
-            {conversation.snippet || 'No preview available'}
-          </div>
-        </button>
-        <div className="sidebar-item-actions">
-          <button
-            type="button"
-            className={clsx('icon-button', conversation.pinned && 'active')}
-            title={conversation.pinned ? 'Unpin conversation' : 'Pin conversation'}
-            aria-label={conversation.pinned ? 'Unpin conversation' : 'Pin conversation'}
-            onClick={() => pinConversation(conversation.id, !conversation.pinned)}
-          >
-            <Pin size={14} />
-          </button>
-        </div>
-      </div>
-    )
-  }
+  const rowProps = useMemo<SidebarRowData>(
+    () => ({
+      items,
+      navigate,
+      noPreviewLabel: t.sidebar.noPreview,
+      onCloseMobile,
+      selectedId,
+    }),
+    [items, navigate, onCloseMobile, selectedId, t.sidebar.noPreview],
+  )
 
   return (
-    <aside className={clsx('sidebar', isMobileOpen && 'is-mobile-open')}>
-      <div className="sidebar-scroll">
-        <div className="sidebar-brand">
+    <aside className={clsx(styles.sidebar, isMobileOpen && styles.mobileOpen)} aria-label={t.sidebar.ariaSidebar}>
+      <div className={styles.fixedTop}>
+        <div className={styles.brand}>
           <p>ChatGPT Data Export Viewer</p>
         </div>
         <button
-          className="sidebar-search-trigger"
+          className={styles.searchTrigger}
           type="button"
           onClick={() => {
             onOpenSearch()
             onCloseMobile()
           }}
-          title="Search conversations (Ctrl/Cmd + K)"
+          title={`${t.nav.search} (${t.actions.searchKeyboard})`}
+          aria-keyshortcuts="Control+K Meta+K"
         >
-          <Search size={16} />
-          <span>Search conversations…</span>
-          <kbd>Ctrl/Cmd + K</kbd>
+          <Search size={16} aria-hidden="true" />
+          <span>{t.nav.search}</span>
+          <kbd aria-hidden="true">{t.actions.searchKeyboard}</kbd>
         </button>
-        <div className="sidebar-top-actions">
+        <div className={styles.topActions}>
           <button
             className="primary"
             onClick={() => {
@@ -139,55 +109,107 @@ export function Sidebar({
               onCloseMobile()
             }}
             disabled={importing}
-            title="Import ChatGPT ZIP exports"
+            title={t.importer.title}
           >
-            Import ZIP
+            {t.actions.importZip}
           </button>
         </div>
-        {hasConversations ? (
-          <>
-            <div className="sidebar-section-head">
-              <span>Conversations</span>
-              <span>{mergedIndex.length}</span>
-            </div>
-            <div className="sidebar-nav">
-              <button
-                className={clsx('sidebar-nav-button', isGalleryRoute && 'active')}
-                onClick={() => {
-                  navigate('/gallery')
-                  onCloseMobile()
-                }}
-              >
-                Gallery
-              </button>
-            </div>
-            <div className="sidebar-list">
-              <List height={listHeight} itemCount={items.length} itemSize={getItemSize} width={listWidth} itemData={items}>
-                {rowRenderer as never}
-              </List>
-            </div>
-          </>
-        ) : (
-          <div className="sidebar-empty">
-            <h3>No conversations yet</h3>
-            <p>Import a ChatGPT ZIP archive to start browsing offline.</p>
-          </div>
+        {hasConversations && (
+          <nav className={styles.nav} aria-label={t.sidebar.ariaSecondaryNav}>
+            <button
+              className={clsx(styles.navButton, isGalleryRoute && styles.navButtonActive)}
+              onClick={() => {
+                navigate('/artifacts')
+                onCloseMobile()
+              }}
+              aria-current={isGalleryRoute ? 'page' : undefined}
+            >
+              <span>{t.nav.gallery}</span>
+              {generatedAssets.length > 0 && <span className={styles.navCount}>{generatedAssets.length}</span>}
+            </button>
+          </nav>
         )}
       </div>
-      <footer className="sidebar-footer">
-        <div className="sidebar-footer-status">
-          <p>Local dataset</p>
-          <p title={`Last export: ${lastExportLabel}`}>Last export: {lastExportLabel}</p>
+
+      {hasConversations ? (
+        <>
+          <div className={styles.sectionHead} aria-hidden="true">
+            <span>{t.nav.home}</span>
+            <span>{mergedIndex.length}</span>
+          </div>
+          <nav ref={listContainerRef} className={styles.list} aria-label={t.sidebar.ariaConversations}>
+            <List
+              rowComponent={SidebarRow}
+              rowCount={items.length}
+              rowHeight={ITEM_HEIGHT}
+              rowProps={rowProps}
+              overscanCount={5}
+              style={{ height: listHeight, width: '100%' }}
+            />
+          </nav>
+        </>
+      ) : (
+        <div className={styles.empty}>
+          <h3>{t.sidebar.emptyTitle}</h3>
+          <p>{t.sidebar.emptyDesc}</p>
         </div>
-        <div className="sidebar-footer-actions">
-          <button type="button" className="icon-button" title="About" aria-label="About" onClick={onOpenAbout}>
+      )}
+
+      <footer className={styles.footer}>
+        <div className={styles.footerStatus}>
+          <p>{t.sidebar.localDataset}</p>
+          <p title={`${t.sidebar.lastExport}: ${lastExportLabel}`}>{t.sidebar.lastExport}: {lastExportLabel}</p>
+        </div>
+        <div className={styles.footerActions}>
+          <button type="button" className="icon-button" title={t.nav.about} aria-label={t.nav.about} onClick={onOpenAbout}>
             <CircleHelp size={15} />
           </button>
-          <button type="button" className="icon-button" title="Settings" aria-label="Settings" onClick={onOpenSettings}>
+          <button type="button" className="icon-button" title={t.nav.settings} aria-label={t.nav.settings} onClick={onOpenSettings}>
             <Settings size={15} />
           </button>
         </div>
       </footer>
     </aside>
+  )
+}
+
+function SidebarRow({
+  ariaAttributes,
+  index,
+  items,
+  navigate,
+  noPreviewLabel,
+  onCloseMobile,
+  selectedId,
+  style,
+}: RowComponentProps<SidebarRowData>) {
+  const conversation = items[index]
+  if (!conversation) {
+    return null
+  }
+
+  const isSelected = conversation.id === selectedId
+
+  return (
+    <div {...ariaAttributes} className={clsx(styles.item, isSelected && styles.itemSelected)} style={style}>
+      <button
+        className={styles.itemMain}
+        onClick={() => {
+          navigate(`/${conversation.id}`)
+          onCloseMobile()
+        }}
+        aria-current={isSelected ? 'page' : undefined}
+      >
+        <div className={styles.itemLine}>
+          <span className={styles.itemTitle} title={conversation.title}>
+            {conversation.title}
+          </span>
+          <span className={styles.itemMeta}>{formatShortDate(conversation.last_message_time)}</span>
+        </div>
+        <div className={styles.itemSnippet} title={conversation.snippet || noPreviewLabel}>
+          {conversation.snippet || noPreviewLabel}
+        </div>
+      </button>
+    </div>
   )
 }

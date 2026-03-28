@@ -1,0 +1,11 @@
+@mixin focus-ring($color: rgba(34, 211, 238, 0.75), $shadow: rgba(34, 211, 238, 0.2)) {
+  outline: none;
+  border-color: $color;
+  box-shadow: 0 0 0 2px $shadow;
+}
+
+@mixin light-theme {
+  :global(:root[data-app-theme='light']) & {
+    @content;
+  }
+}

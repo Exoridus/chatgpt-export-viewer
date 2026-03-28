@@ -454,6 +454,10 @@ export interface GeneratedAsset {
   size?: number
   mime?: string
   pointers?: string[]
+  createdAt?: number | string | null
+  updatedAt?: number | string | null
+  create_time?: number | string | null
+  update_time?: number | string | null
 }
 
 export interface ExportUserProfile {

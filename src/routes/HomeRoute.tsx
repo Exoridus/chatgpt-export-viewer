@@ -1,12 +1,12 @@
+import { usePreferences } from '../state/PreferencesContext'
+
 export function HomeRoute() {
+  const { t } = usePreferences()
   return (
     <div className="empty-state">
-      <h2>Welcome</h2>
-      <p>
-        Use the Import button to load your ChatGPT data export ZIP files. Imported conversations stay offline in your browser until you
-        purge them.
-      </p>
-      <p>Already have a server dataset? Select a conversation from the sidebar to get started.</p>
+      <h2>{t.home.welcome}</h2>
+      <p>{t.home.desc1}</p>
+      <p>{t.home.desc2}</p>
     </div>
   )
 }

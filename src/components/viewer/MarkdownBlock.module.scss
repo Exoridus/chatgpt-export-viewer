@@ -1,0 +1,102 @@
+@use '../../styles/mixins' as *;
+
+.markdownBlock {
+  width: 100%;
+  overflow-x: auto;
+  font-size: 0.98rem;
+  line-height: 1.7;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  p {
+    margin: 0 0 0.75rem;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    margin: 0.2rem 0 0.65rem;
+    line-height: 1.35;
+  }
+
+  h2 {
+    font-size: 1.04rem;
+  }
+
+  h3 {
+    font-size: 0.98rem;
+  }
+
+  ul,
+  ol {
+    margin: 0.2rem 0 0.7rem 1.15rem;
+    padding: 0;
+  }
+
+  blockquote {
+    margin: 0.3rem 0 0.75rem;
+    border-left: 3px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0.4rem;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.75);
+    padding: 0.45rem 0.75rem;
+  }
+
+  table {
+    width: 100%;
+    margin: 0.3rem 0 0.85rem;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+
+  th,
+  td {
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    padding: 0.45rem 0.6rem;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    background: rgba(255, 255, 255, 0.08);
+    font-weight: 600;
+  }
+
+  pre,
+  code {
+    border-radius: 0.4rem;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 0.2rem 0.35rem;
+  }
+
+  @include light-theme {
+    blockquote {
+      border-left-color: rgba(21, 32, 51, 0.18);
+      background: rgba(21, 32, 51, 0.04);
+      color: rgba(21, 32, 51, 0.74);
+    }
+
+    th {
+      background: rgba(21, 32, 51, 0.08);
+    }
+
+    th,
+    td {
+      border-color: rgba(21, 32, 51, 0.12);
+    }
+
+    pre,
+    code {
+      background: rgba(21, 32, 51, 0.06);
+    }
+  }
+}
+
+.hit {
+  border-radius: 0.6rem;
+  background: rgba(34, 211, 238, 0.1);
+  padding: 0.6rem;
+}

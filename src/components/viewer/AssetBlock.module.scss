@@ -1,0 +1,87 @@
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+.missing {
+  border: 1px dashed rgba(248, 113, 113, 0.5);
+  border-radius: 0.75rem;
+  color: #fecaca;
+  padding: 0.75rem;
+
+  @include light-theme {
+    background: rgba(239, 68, 68, 0.05);
+    color: #b91c1c;
+  }
+}
+
+.thumb {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 84px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0;
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+
+  @include light-theme {
+    border-color: rgba(21, 32, 51, 0.12);
+    background: #fff;
+  }
+}
+
+.thumbMedia {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbBadge {
+  position: absolute;
+  right: 0.45rem;
+  bottom: 0.45rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.85);
+  color: $text-primary;
+  font-size: 0.68rem;
+  padding: 0.18rem 0.45rem;
+}
+
+.thumbFile {
+  display: flex;
+  min-height: 84px;
+  width: 100%;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.75rem;
+}
+
+.thumbAudioCard {
+  align-items: flex-start;
+}
+
+.thumbFileName {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thumbFileMeta {
+  color: $text-subtle;
+  font-size: 0.78rem;
+
+  @include light-theme {
+    color: rgba(21, 32, 51, 0.68);
+  }
+}

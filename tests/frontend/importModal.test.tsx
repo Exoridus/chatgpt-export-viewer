@@ -2,7 +2,7 @@ import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { ImportModal } from '../../src/components/importer/ImportModal'
-import type { ImportProgressState } from '../../src/state/AppDataContext'
+import type { ImportProgressState } from '../../src/state/ImportExportContext'
 
 const importZips = vi.fn(async () => 0)
 const resetImportProgress = vi.fn()
@@ -23,11 +23,52 @@ vi.mock('../../src/state/AppDataContext', async () => {
     ...actual,
     useAppData: () => ({
       importZips,
+      storageAvailable: state.storageAvailable,
+      mergedIndex: [],
+    }),
+  }
+})
+
+vi.mock('../../src/state/ImportExportContext', async () => {
+  const actual = await vi.importActual<typeof import('../../src/state/ImportExportContext')>('../../src/state/ImportExportContext')
+  return {
+    ...actual,
+    useImportExport: () => ({
       importing: state.importing,
       importProgress: state.importProgress,
       resetImportProgress,
+      exporting: false,
+      exportProgress: { phase: 'idle', message: '' },
+    }),
+  }
+})
+
+vi.mock('../../src/state/NotificationContext', async () => {
+  const actual = await vi.importActual<typeof import('../../src/state/NotificationContext')>('../../src/state/NotificationContext')
+  return {
+    ...actual,
+    useNotification: () => ({
+      notice: null,
       pushNotice,
-      storageAvailable: state.storageAvailable,
+      clearNotice: vi.fn(),
+    }),
+  }
+})
+
+vi.mock('../../src/state/PreferencesContext', async () => {
+  const { translations } = await import('../../src/lib/i18n')
+  return {
+    usePreferences: () => ({
+      viewerPreferences: {
+        locale: 'auto',
+        appTheme: 'system',
+        codeThemeFollowAppTheme: true,
+        codeTheme: 'a11yDark',
+        collapseSystemMessages: true,
+        collapseCodeBlocks: false,
+      },
+      setViewerPreferences: vi.fn(),
+      t: translations.en,
     }),
   }
 })
@@ -37,11 +78,9 @@ describe('ImportModal', () => {
     render(<ImportModal open onClose={() => undefined} />)
 
     expect(screen.getByLabelText('When importing conversations, use this strategy:')).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Import newer and missing entries' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Import and replace all existing entries' })).toBeInTheDocument()
-    expect(
-      screen.getByRole('option', { name: 'Import missing entries and clone when timestamps differ' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Upsert (Add/Update)' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Replace (Clear & Import)' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Clone (Force unique IDs)' })).toBeInTheDocument()
   })
 
   it('updates helper description when selecting clone mode', () => {

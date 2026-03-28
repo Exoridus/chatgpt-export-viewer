@@ -1,7 +1,9 @@
+import clsx from 'clsx'
 import { Check, Copy, ExternalLink, Github, Heart, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { useModalA11y } from '../../hooks/useModalA11y'
+import styles from './AboutModal.module.scss'
 
 interface AboutModalProps {
   open: boolean
@@ -20,7 +22,7 @@ export function AboutModal({ open, onClose }: AboutModalProps) {
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="about-title" onMouseDown={onOverlayMouseDown}>
-      <div className="modal about-modal" ref={containerRef}>
+      <div className={clsx('modal', styles.modal)} ref={containerRef}>
         <header>
           <h2 id="about-title">About</h2>
           <button className="icon-button modal-close-btn" onClick={onClose} aria-label="Close About dialog">
@@ -28,25 +30,25 @@ export function AboutModal({ open, onClose }: AboutModalProps) {
           </button>
         </header>
 
-        <section className="about-hero">
+        <section className={styles.hero}>
           <h3>ChatGPT Data Export Viewer</h3>
-          <p className="about-lead">Browse ChatGPT exports in a static SPA with local import, search, and offline-friendly hosting.</p>
-          <p className="about-copy">
+          <p className={styles.lead}>Browse ChatGPT exports in a static SPA with local import, search, and offline-friendly hosting.</p>
+          <p className={styles.copy}>
             No backend required. Host static files as-is, and optionally add imported conversation datasets for server-side usage.
           </p>
         </section>
 
         <section>
-          <h3>License</h3>
-          <p className="about-copy">AGPL-3.0-or-later. If you host a modified version for users, you must provide the source code.</p>
-          <a href={licenseUrl} target="_blank" rel="noreferrer" className="about-inline-link">
+          <h3 className={styles.sectionHeading}>License</h3>
+          <p className={styles.copy}>AGPL-3.0-or-later. If you host a modified version for users, you must provide the source code.</p>
+          <a href={licenseUrl} target="_blank" rel="noreferrer" className={styles.inlineLink}>
             Read license <ExternalLink size={13} />
           </a>
         </section>
 
         <section>
-          <h3>Links</h3>
-          <div className="about-link-row">
+          <h3 className={styles.sectionHeading}>Links</h3>
+          <div className={styles.linkRow}>
             <a href={__APP_REPO_URL__} target="_blank" rel="noreferrer" title="GitHub Repository">
               <Github size={14} /> GitHub <ExternalLink size={13} />
             </a>
@@ -56,19 +58,19 @@ export function AboutModal({ open, onClose }: AboutModalProps) {
           </div>
         </section>
 
-        <section className="about-meta">
-          <h3>Build</h3>
+        <section className={styles.meta}>
+          <h3 className={styles.sectionHeading}>Build</h3>
           <p>
             <span>Version</span>
             <code>{__APP_VERSION__}</code>
           </p>
           <p>
             <span>Commit</span>
-            <span className="about-commit-row">
+            <span className={styles.commitRow}>
               <code>{__APP_COMMIT__}</code>
               <button
                 type="button"
-                className="icon-button about-copy-btn"
+                className={clsx('icon-button', styles.copyButton)}
                 title={copied ? 'Copied' : 'Copy commit'}
                 aria-label={copied ? 'Copied commit hash' : 'Copy commit hash'}
                 onClick={async () => {

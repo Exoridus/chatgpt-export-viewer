@@ -1,14 +1,19 @@
+import './index.scss'
+
 import clsx from 'clsx'
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { Route, Routes } from 'react-router-dom'
 
 import { DeepLinkRedirect } from './components/layout/DeepLinkRedirect'
+import { ErrorBoundary } from './components/layout/ErrorBoundary'
 import { TopBar } from './components/layout/TopBar'
 import { Sidebar } from './components/sidebar/Sidebar'
 import { useHotkeys } from './hooks/useHotkeys'
 import { HomeRoute } from './routes/HomeRoute'
 import { NotFoundRoute } from './routes/NotFoundRoute'
-import { useAppData } from './state/AppDataContext'
+import { useImportExport } from './state/ImportExportContext'
+import { useNotification } from './state/NotificationContext'
+import { usePreferences } from './state/PreferencesContext'
 
 const ConversationRoute = lazy(() => import('./routes/ConversationRoute').then((mod) => ({ default: mod.ConversationRoute })))
 const GalleryRoute = lazy(() => import('./routes/GalleryRoute').then((mod) => ({ default: mod.GalleryRoute })))
@@ -23,7 +28,12 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
-  const { notice, clearNotice } = useAppData()
+  const [isDropImportActive, setIsDropImportActive] = useState(false)
+  const [pendingDroppedZipFiles, setPendingDroppedZipFiles] = useState<File[]>([])
+  const dragDepthRef = useRef(0)
+  const { notice, clearNotice } = useNotification()
+  const { importing } = useImportExport()
+  const { t } = usePreferences()
 
   const shouldOpenSearchHotkey = useCallback((event: KeyboardEvent) => {
     const target = event.target as HTMLElement | null
@@ -34,10 +44,13 @@ function App() {
       tag === 'input' ||
       tag === 'textarea' ||
       target.closest('[contenteditable="true"]') !== null ||
-      target.closest('.code-block') !== null ||
+      target.closest('[data-code-block="true"]') !== null ||
       target.closest('.cm-editor') !== null
     if (isEditable) {return false}
-    return target.closest('.app-shell') !== null
+    if (target === document.body || target === document.documentElement) {
+      return true
+    }
+    return target.closest('[data-app-shell="true"]') !== null
   }, [])
 
   useHotkeys(['ctrl+f', 'meta+f', 'ctrl+k', 'meta+k'], () => setSearchOpen(true), { shouldHandle: shouldOpenSearchHotkey })
@@ -70,8 +83,74 @@ function App() {
     return () => window.clearTimeout(timer)
   }, [notice, clearNotice])
 
+  useEffect(() => {
+    const hasZipFiles = (transfer: DataTransfer | null) => {
+      if (!transfer) {return false}
+      if (Array.from(transfer.files).some((file) => file.name.toLowerCase().endsWith('.zip'))) {
+        return true
+      }
+      return Array.from(transfer.items).some((item) => item.kind === 'file')
+    }
+
+    const onDragEnter = (event: DragEvent) => {
+      if (!hasZipFiles(event.dataTransfer)) {return}
+      event.preventDefault()
+      dragDepthRef.current += 1
+      setIsDropImportActive(true)
+    }
+
+    const onDragOver = (event: DragEvent) => {
+      if (!hasZipFiles(event.dataTransfer)) {return}
+      event.preventDefault()
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'copy'
+      }
+      setIsDropImportActive(true)
+    }
+
+    const onDragLeave = (event: DragEvent) => {
+      if (!hasZipFiles(event.dataTransfer)) {return}
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1)
+      if (dragDepthRef.current === 0) {
+        setIsDropImportActive(false)
+      }
+    }
+
+    const onDrop = (event: DragEvent) => {
+      if (!hasZipFiles(event.dataTransfer)) {return}
+      event.preventDefault()
+      dragDepthRef.current = 0
+      setIsDropImportActive(false)
+      if (importing) {return}
+      const files = Array.from(event.dataTransfer?.files ?? []).filter((file) => file.name.toLowerCase().endsWith('.zip'))
+      if (!files.length) {return}
+      setPendingDroppedZipFiles(files)
+      setUploadOpen(true)
+    }
+
+    window.addEventListener('dragenter', onDragEnter)
+    window.addEventListener('dragover', onDragOver)
+    window.addEventListener('dragleave', onDragLeave)
+    window.addEventListener('drop', onDrop)
+
+    return () => {
+      window.removeEventListener('dragenter', onDragEnter)
+      window.removeEventListener('dragover', onDragOver)
+      window.removeEventListener('dragleave', onDragLeave)
+      window.removeEventListener('drop', onDrop)
+    }
+  }, [importing])
+
   return (
-    <div className={clsx('app-shell', sidebarOpen && 'sidebar-mobile-open')}>
+    <div className="app-shell" data-app-shell="true">
+      {isDropImportActive && (
+        <div className="app-drop-overlay" role="status" aria-live="polite">
+          <div className="app-drop-overlay-card">
+            <strong>{t.app.dropImportTitle}</strong>
+            <span>{t.app.dropImportSubtitle}</span>
+          </div>
+        </div>
+      )}
       <Sidebar
         onOpenUpload={() => setUploadOpen(true)}
         onOpenSearch={() => setSearchOpen(true)}
@@ -84,14 +163,17 @@ function App() {
         <TopBar onToggleSidebar={() => setSidebarOpen((open) => !open)} />
         <main className="content-area">
           <DeepLinkRedirect />
-          <Suspense fallback={<div className="viewer-loading">Loading…</div>}>
-            <Routes>
-              <Route path="/" element={<HomeRoute />} />
-              <Route path="/gallery" element={<GalleryRoute />} />
-              <Route path="/:conversationId" element={<ConversationRoute />} />
-              <Route path="*" element={<NotFoundRoute />} />
-            </Routes>
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={<div className="viewer-loading">{t.app.loading}</div>}>
+              <Routes>
+                <Route path="/" element={<HomeRoute />} />
+                <Route path="/artifacts" element={<GalleryRoute />} />
+                <Route path="/gallery" element={<GalleryRoute />} />
+                <Route path="/:conversationId" element={<ConversationRoute />} />
+                <Route path="*" element={<NotFoundRoute />} />
+              </Routes>
+            </Suspense>
+          </ErrorBoundary>
         </main>
         {notice && (
           <div className="toast-container" role="status" aria-live="polite">
@@ -110,11 +192,24 @@ function App() {
         <Suspense fallback={null}>
           <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
           <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
-          <ImportModal open={uploadOpen} onClose={() => setUploadOpen(false)} />
+          <ImportModal
+            open={uploadOpen}
+            onClose={() => {
+              setUploadOpen(false)
+              setPendingDroppedZipFiles([])
+            }}
+            pendingFiles={pendingDroppedZipFiles}
+            onConsumePendingFiles={() => setPendingDroppedZipFiles([])}
+          />
         </Suspense>
       )}
       {sidebarOpen && (
-        <button type="button" className="sidebar-backdrop" aria-label="Close conversation list" onClick={() => setSidebarOpen(false)} />
+        <button
+          type="button"
+          className="sidebar-backdrop"
+          aria-label={t.sidebar.closeConversationList}
+          onClick={() => setSidebarOpen(false)}
+        />
       )}
     </div>
   )

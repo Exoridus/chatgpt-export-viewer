@@ -1,0 +1,446 @@
+{
+  "en": {
+    "home": {
+      "welcome": "Welcome",
+      "desc1": "Use the Import button to load your ChatGPT data export ZIP files. Imported conversations stay offline in your browser until you purge them.",
+      "desc2": "Already have a server dataset? Select a conversation from the sidebar to get started."
+    },
+    "sidebar": {
+      "emptyTitle": "No conversations yet",
+      "emptyDesc": "Import a ChatGPT ZIP archive to start browsing offline.",
+      "localDataset": "Local dataset",
+      "lastExport": "Last export",
+      "unknown": "unknown",
+      "noPreview": "No preview available",
+      "ariaSidebar": "Sidebar",
+      "ariaSecondaryNav": "Secondary navigation",
+      "ariaConversations": "Conversations",
+      "closeConversationList": "Close conversation list"
+    },
+    "nav": {
+      "home": "Conversations",
+      "gallery": "Artifacts",
+      "settings": "Settings",
+      "about": "About",
+      "search": "Search conversations...",
+      "pinned": "Pinned",
+      "all": "All",
+      "welcome": "Welcome"
+    },
+    "actions": {
+      "import": "Import",
+      "importZip": "Import ZIP",
+      "export": "Export",
+      "exportMarkdown": "Export as Markdown",
+      "downloadBundle": "Export Offline Viewer ZIP",
+      "purge": "Purge All Data",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "delete": "Delete",
+      "close": "Close",
+      "copyLink": "Copy link",
+      "toggleSidebar": "Toggle sidebar",
+      "searchKeyboard": "Ctrl/Cmd + K",
+      "collapseAll": "Collapse all system blocks",
+      "expandAll": "Expand all system blocks",
+      "jumpTop": "Jump to top"
+    },
+    "gallery": {
+      "title": "Artifacts",
+      "totalItems": "total items",
+      "linked": "In conversations",
+      "unlinked": "Unlinked",
+      "empty": "No assets in this category yet.",
+      "openPreviewFor": "Open preview for {name}",
+      "unknownTime": "Unknown time"
+    },
+    "settings": {
+      "title": "Settings",
+      "storage": {
+        "title": "Storage & Persistence",
+        "description": "Imported conversations, search data, and assets are stored in your browser's IndexedDB. This is private and stays on your machine.",
+        "cacheEnabled": "Enable persistent cache",
+        "dbSize": "Database size",
+        "refresh": "Refresh",
+        "cleanup": "Cleanup Cache",
+        "cleanupDesc": "Remove local conversations that are already provided by the server.",
+        "purge": "Purge Database",
+        "purgeDesc": "Irreversibly delete all imported data from this browser.",
+        "storageBlockedHint": "Browser storage is disabled - enable IndexedDB/localStorage to manage cached data.",
+        "purgeNeedsImport": "Import conversations before purging.",
+        "exportBuilding": "Building ZIP...",
+        "purgeDialogTitle": "Purge database?",
+        "purgeDialogBody": "Are you sure you want to delete all imported data{sizeNote}? This action cannot be undone.",
+        "purgeNow": "Purge now",
+        "purging": "Purging..."
+      },
+      "viewer": {
+        "localStorageTitle": "Local offline storage",
+        "language": "Language",
+        "languageAuto": "Automatic",
+        "appTheme": "App theme",
+        "codeTheme": "Code theme",
+        "codeThemeFollow": "Match code theme to app theme",
+        "themePreview": "Theme preview",
+        "appThemeResolved": "App",
+        "codeThemeResolved": "Code",
+        "themeSystem": "System",
+        "themeDark": "Dark",
+        "themeLight": "Light",
+        "collapseSystem": "Collapse system messages by default",
+        "collapseCode": "Collapse code blocks by default",
+        "languageEnglish": "English",
+        "languageGerman": "Deutsch"
+      },
+      "sections": {
+        "appearance": "Appearance",
+        "behavior": "Behavior"
+      }
+    },
+    "search": {
+      "minChars": "Type at least 3 characters to search",
+      "unavailable": "Search will be available after importing data or providing a server search index.",
+      "noMatches": "No matches yet - try another phrase",
+      "searching": "Searching...",
+      "placeholder": "Search conversations"
+    },
+    "viewer": {
+      "loadingPreview": "Loading preview...",
+      "previewTruncated": "Preview truncated to first 200k characters.",
+      "previewUnavailableType": "Preview unavailable for this file type.",
+      "openInNewTab": "Open in new tab",
+      "download": "Download",
+      "image": "Image",
+      "video": "Video",
+      "audio": "Audio",
+      "closePreview": "Close preview",
+      "openAttachment": "Open attachment",
+      "lines": "lines",
+      "copyCode": "Copy code",
+      "copied": "Copied",
+      "copyCodeBlock": "Copy code block",
+      "copiedCodeBlock": "Copied code block",
+      "disableLineWrap": "Disable line wrap",
+      "wrapLongLines": "Wrap long lines",
+      "conversationActions": "Conversation actions",
+      "jumpBottom": "Jump to bottom",
+      "linkedArtifacts": "Linked artifacts",
+      "noMessageContent": "No content for this message.",
+      "unsupportedBlock": "Unsupported block type.",
+      "copyConversationLink": "Copy conversation link",
+      "conversationNotAvailableExport": "Conversation not available for export.",
+      "conversationLinkCopied": "Conversation link copied.",
+      "unableCopyLink": "Unable to copy link.",
+      "thinkingFor": "Thought for",
+      "latest": "Latest",
+      "alternative": "Alt",
+      "expandSystem": "Expand system message",
+      "collapseSystem": "Collapse system message",
+      "responsePreparation": "Response preparation",
+      "search": "Search",
+      "thinking": "Thinking",
+      "recency": "Recency",
+      "domains": "Domains",
+      "sources": "Sources",
+      "requestedResponseLength": "Requested response length",
+      "showMore": "Show more",
+      "showLess": "Show less",
+      "previewUnavailable": "Preview unavailable",
+      "previewUnavailableWithReason": "Preview unavailable ({reason})"
+    },
+    "importer": {
+      "title": "Import ChatGPT Export",
+      "dropZone": "Drop your ChatGPT export .zip files here",
+      "selectFiles": "Select Files",
+      "mode": {
+        "upsert": "Upsert (Add/Update)",
+        "replace": "Replace (Clear & Import)",
+        "clone": "Clone (Force unique IDs)"
+      },
+      "status": {
+        "idle": "Select ChatGPT data export ZIP files.",
+        "processing": "Processing archive...",
+        "saving": "Saving to database...",
+        "complete": "Import complete!",
+        "error": "Import failed."
+      },
+      "notifications": {
+        "zipOnly": "Please select ZIP exports generated by ChatGPT.",
+        "storageDisabled": "Browser storage is disabled. Enable IndexedDB and local storage access to import conversations.",
+        "noConversations": "No conversations found in the archive",
+        "upToDate": "No new or updated conversations to process — everything is up to date.",
+        "noConversationsDetected": "No conversations were detected in the selected files.",
+        "failed": "Import failed — please verify the ZIP file came from ChatGPT data export."
+      },
+      "progress": {
+        "uploading": "Uploading selected archives…",
+        "readingMetadata": "Reading archive metadata",
+        "conversationCount": "Conversations {processed}/{total}",
+        "processingConversationCount": "Processing conversations {processed}/{total}",
+        "assetCount": "Assets {processed}/{total}",
+        "archiveCount": "Archive {index} of {total}"
+      },
+      "subtitle": "Upload ChatGPT data export ZIP files",
+      "storageDisabledSite": "Browser storage is disabled - enable IndexedDB/localStorage access for this site to import conversations.",
+      "modeLabel": "When importing conversations, use this strategy:",
+      "modeDescription": {
+        "upsert": "Imports newer conversations and adds conversations that do not exist yet.",
+        "replace": "Clears existing conversations and imports only the selected archives.",
+        "clone": "Imports missing conversations and keeps both versions when timestamps differ."
+      },
+      "pendingFilesReady": "{count} dropped ZIP file(s) ready.",
+      "importDropped": "Import dropped files ({count})",
+      "multipleHint": "You can select multiple exports at once.",
+      "copyArchiveName": "Copy archive filename",
+      "progressAria": "Conversation import progress",
+      "completeNoChanges": "Everything is up to date.",
+      "viewConversations": "View conversations",
+      "importMore": "Import more"
+    },
+    "exporter": {
+      "ready": "Ready to export offline viewer ZIP.",
+      "preparing": "Preparing offline viewer ZIP…",
+      "complete": "Offline viewer ZIP is ready.",
+      "exported": "Offline viewer ZIP exported.",
+      "failed": "Failed to export offline viewer ZIP.",
+      "exportFailed": "Export failed.",
+      "nothingToExport": "Nothing to export yet — import data first."
+    },
+    "storage": {
+      "unavailable": "Browser storage is disabled — enable it to import and cache conversations.",
+      "indexedDbBlocked": "Browser blocked IndexedDB — enable storage permissions to import conversations."
+    },
+    "data": {
+      "cleanupRemoved": "cached conversation(s) removed that already exist on the server.",
+      "cleanupUpToDate": "Local cache already matches server data.",
+      "purged": "All local data was purged."
+    },
+    "app": {
+      "loading": "Loading...",
+      "dropImportTitle": "Drop ZIP exports to stage import",
+      "dropImportSubtitle": "Choose mode and confirm in the import window"
+    }
+  },
+  "de": {
+    "home": {
+      "welcome": "Willkommen",
+      "desc1": "Nutzen Sie die Import-Schaltfläche, um Ihre ChatGPT-Datenexport-ZIP-Dateien zu laden. Importierte Unterhaltungen bleiben offline in Ihrem Browser gespeichert, bis Sie diese löschen.",
+      "desc2": "Haben Sie bereits einen Server-Datensatz? Wählen Sie eine Unterhaltung aus der Seitenleiste aus, um zu beginnen."
+    },
+    "sidebar": {
+      "emptyTitle": "Noch keine Unterhaltungen",
+      "emptyDesc": "Importieren Sie ein ChatGPT-ZIP-Archiv, um offline zu browsen.",
+      "localDataset": "Lokaler Datensatz",
+      "lastExport": "Letzter Export",
+      "unknown": "unbekannt",
+      "noPreview": "Keine Vorschau verfügbar",
+      "ariaSidebar": "Seitenleiste",
+      "ariaSecondaryNav": "Sekundäre Navigation",
+      "ariaConversations": "Unterhaltungen",
+      "closeConversationList": "Unterhaltungsliste schließen"
+    },
+    "nav": {
+      "home": "Unterhaltungen",
+      "gallery": "Artefakte",
+      "settings": "Einstellungen",
+      "about": "Über",
+      "search": "Unterhaltungen durchsuchen...",
+      "pinned": "Angeheftet",
+      "all": "Alle",
+      "welcome": "Willkommen"
+    },
+    "actions": {
+      "import": "Importieren",
+      "importZip": "ZIP importieren",
+      "export": "Exportieren",
+      "exportMarkdown": "Als Markdown exportieren",
+      "downloadBundle": "Offline-Viewer-ZIP exportieren",
+      "purge": "Alle Daten löschen",
+      "pin": "Anheften",
+      "unpin": "Lösen",
+      "delete": "Löschen",
+      "close": "Schließen",
+      "copyLink": "Link kopieren",
+      "toggleSidebar": "Sidebar umschalten",
+      "searchKeyboard": "Strg/Cmd + K",
+      "collapseAll": "Alle System-Blöcke einklappen",
+      "expandAll": "Alle System-Blöcke ausklappen",
+      "jumpTop": "Nach oben springen"
+    },
+    "gallery": {
+      "title": "Artefakte",
+      "totalItems": "Elemente insgesamt",
+      "linked": "In Unterhaltungen",
+      "unlinked": "Nicht verknüpft",
+      "empty": "Noch keine Medien in dieser Kategorie vorhanden.",
+      "openPreviewFor": "Vorschau für {name} öffnen",
+      "unknownTime": "Unbekannte Zeit"
+    },
+    "settings": {
+      "title": "Einstellungen",
+      "storage": {
+        "title": "Speicher & Persistenz",
+        "description": "Importierte Unterhaltungen, Suchdaten und Assets werden in der IndexedDB Ihres Browsers gespeichert. Dies ist privat und bleibt auf Ihrem Gerät.",
+        "cacheEnabled": "Permanenten Cache aktivieren",
+        "dbSize": "Datenbankgröße",
+        "refresh": "Aktualisieren",
+        "cleanup": "Cache bereinigen",
+        "cleanupDesc": "Lokale Unterhaltungen entfernen, die bereits vom Server bereitgestellt werden.",
+        "purge": "Datenbank löschen",
+        "purgeDesc": "Alle importierten Daten unwiderruflich aus diesem Browser löschen.",
+        "storageBlockedHint": "Browser-Speicher ist deaktiviert - aktivieren Sie IndexedDB/localStorage, um zwischengespeicherte Daten zu verwalten.",
+        "purgeNeedsImport": "Importieren Sie Unterhaltungen vor dem Löschen.",
+        "exportBuilding": "Erstelle ZIP...",
+        "purgeDialogTitle": "Datenbank löschen?",
+        "purgeDialogBody": "Möchten Sie wirklich alle importierten Daten löschen{sizeNote}? Dieser Vorgang kann nicht rückgängig gemacht werden.",
+        "purgeNow": "Jetzt löschen",
+        "purging": "Lösche..."
+      },
+      "viewer": {
+        "localStorageTitle": "Lokaler Offline-Speicher",
+        "language": "Sprache",
+        "languageAuto": "Automatisch",
+        "appTheme": "App-Theme",
+        "codeTheme": "Code-Theme",
+        "codeThemeFollow": "Code-Theme an App-Theme koppeln",
+        "themePreview": "Theme-Vorschau",
+        "appThemeResolved": "App",
+        "codeThemeResolved": "Code",
+        "themeSystem": "System",
+        "themeDark": "Dunkel",
+        "themeLight": "Hell",
+        "collapseSystem": "Systemmeldungen standardmäßig einklappen",
+        "collapseCode": "Codeblöcke standardmäßig einklappen",
+        "languageEnglish": "English",
+        "languageGerman": "Deutsch"
+      },
+      "sections": {
+        "appearance": "Darstellung",
+        "behavior": "Verhalten"
+      }
+    },
+    "search": {
+      "minChars": "Mindestens 3 Zeichen zum Suchen eingeben",
+      "unavailable": "Suche ist verfügbar, sobald Daten importiert oder ein Server-Suchindex bereitgestellt wurde.",
+      "noMatches": "Keine Treffer - bitte anderen Begriff versuchen",
+      "searching": "Suche läuft...",
+      "placeholder": "Unterhaltungen durchsuchen"
+    },
+    "viewer": {
+      "loadingPreview": "Vorschau wird geladen...",
+      "previewTruncated": "Vorschau auf die ersten 200k Zeichen begrenzt.",
+      "previewUnavailableType": "Für diesen Dateityp ist keine Vorschau verfügbar.",
+      "openInNewTab": "In neuem Tab öffnen",
+      "download": "Herunterladen",
+      "image": "Bild",
+      "video": "Video",
+      "audio": "Audio",
+      "closePreview": "Vorschau schließen",
+      "openAttachment": "Anhang öffnen",
+      "lines": "Zeilen",
+      "copyCode": "Code kopieren",
+      "copied": "Kopiert",
+      "copyCodeBlock": "Codeblock kopieren",
+      "copiedCodeBlock": "Codeblock kopiert",
+      "disableLineWrap": "Zeilenumbruch deaktivieren",
+      "wrapLongLines": "Lange Zeilen umbrechen",
+      "conversationActions": "Unterhaltungs-Aktionen",
+      "jumpBottom": "Nach unten springen",
+      "linkedArtifacts": "Verknüpfte Artefakte",
+      "noMessageContent": "Kein Inhalt für diese Nachricht.",
+      "unsupportedBlock": "Nicht unterstützter Blocktyp.",
+      "copyConversationLink": "Unterhaltungslink kopieren",
+      "conversationNotAvailableExport": "Unterhaltung ist nicht für den Export verfügbar.",
+      "conversationLinkCopied": "Unterhaltungslink kopiert.",
+      "unableCopyLink": "Link konnte nicht kopiert werden.",
+      "thinkingFor": "Nachgedacht für",
+      "latest": "Neueste",
+      "alternative": "Alt",
+      "expandSystem": "Systemmeldung ausklappen",
+      "collapseSystem": "Systemmeldung einklappen",
+      "responsePreparation": "Antwortvorbereitung",
+      "search": "Suche",
+      "thinking": "Denken",
+      "recency": "Zeitraum",
+      "domains": "Domains",
+      "sources": "Quellen",
+      "requestedResponseLength": "Angeforderte Antwortlänge",
+      "showMore": "Mehr anzeigen",
+      "showLess": "Weniger anzeigen",
+      "previewUnavailable": "Vorschau nicht verfügbar",
+      "previewUnavailableWithReason": "Vorschau nicht verfügbar ({reason})"
+    },
+    "importer": {
+      "title": "ChatGPT-Export importieren",
+      "dropZone": "Ziehen Sie Ihre ChatGPT-Export .zip Dateien hierher",
+      "selectFiles": "Dateien auswählen",
+      "mode": {
+        "upsert": "Upsert (Hinzufügen/Aktualisieren)",
+        "replace": "Ersetzen (Löschen & Importieren)",
+        "clone": "Klonen (Eindeutige IDs erzwingen)"
+      },
+      "status": {
+        "idle": "Wählen Sie ChatGPT-Datenexport-ZIP-Dateien aus.",
+        "processing": "Archiv wird verarbeitet...",
+        "saving": "In Datenbank speichern...",
+        "complete": "Import abgeschlossen!",
+        "error": "Import fehlgeschlagen."
+      },
+      "notifications": {
+        "zipOnly": "Bitte wählen Sie von ChatGPT generierte ZIP-Exporte aus.",
+        "storageDisabled": "Browser-Speicher ist deaktiviert. Aktivieren Sie IndexedDB und lokalen Speicherzugriff, um Unterhaltungen zu importieren.",
+        "noConversations": "Keine Unterhaltungen im Archiv gefunden",
+        "upToDate": "Keine neuen oder aktualisierten Unterhaltungen zu verarbeiten — alles ist aktuell.",
+        "noConversationsDetected": "In den ausgewählten Dateien wurden keine Unterhaltungen erkannt.",
+        "failed": "Import fehlgeschlagen — bitte überprüfen Sie, ob die ZIP-Datei aus dem ChatGPT-Datenexport stammt."
+      },
+      "progress": {
+        "uploading": "Ausgewählte Archive werden hochgeladen…",
+        "readingMetadata": "Archiv-Metadaten werden gelesen",
+        "conversationCount": "Unterhaltungen {processed}/{total}",
+        "processingConversationCount": "Verarbeite Unterhaltungen {processed}/{total}",
+        "assetCount": "Medien {processed}/{total}",
+        "archiveCount": "Archiv {index} von {total}"
+      },
+      "subtitle": "Laden Sie ChatGPT-Datenexport-ZIP-Dateien hoch",
+      "storageDisabledSite": "Browser-Speicher ist deaktiviert - aktivieren Sie IndexedDB/localStorage für diese Seite, um Unterhaltungen zu importieren.",
+      "modeLabel": "Beim Importieren von Unterhaltungen diese Strategie verwenden:",
+      "modeDescription": {
+        "upsert": "Importiert neuere Unterhaltungen und fügt fehlende hinzu.",
+        "replace": "Löscht alle vorhandenen Unterhaltungen und importiert nur die ausgewählten Archive.",
+        "clone": "Importiert fehlende Einträge und behält beide Versionen bei Zeitstempel-Differenzen."
+      },
+      "pendingFilesReady": "{count} per Drag-and-drop bereitgestellte ZIP-Datei(en) bereit.",
+      "importDropped": "Bereitgestellte Dateien importieren ({count})",
+      "multipleHint": "Sie können mehrere Exporte gleichzeitig auswählen.",
+      "copyArchiveName": "Dateiname kopieren",
+      "progressAria": "Fortschritt beim Unterhaltungsimport",
+      "completeNoChanges": "Alles aktuell.",
+      "viewConversations": "Unterhaltungen ansehen",
+      "importMore": "Mehr importieren"
+    },
+    "exporter": {
+      "ready": "Bereit zum Exportieren der Offline-Viewer-ZIP-Datei.",
+      "preparing": "Offline-Viewer-ZIP wird vorbereitet…",
+      "complete": "Offline-Viewer-ZIP ist bereit.",
+      "exported": "Offline-Viewer-ZIP exportiert.",
+      "failed": "Offline-Viewer-ZIP konnte nicht exportiert werden.",
+      "exportFailed": "Export fehlgeschlagen.",
+      "nothingToExport": "Noch nichts zum Exportieren — importieren Sie zuerst Daten."
+    },
+    "storage": {
+      "unavailable": "Browser-Speicher ist deaktiviert — aktivieren Sie ihn, um Unterhaltungen zu importieren und zwischenzuspeichern.",
+      "indexedDbBlocked": "Browser hat IndexedDB blockiert — aktivieren Sie Speicherberechtigungen, um Unterhaltungen zu importieren."
+    },
+    "data": {
+      "cleanupRemoved": "zwischengespeicherte Unterhaltung(en) entfernt, die bereits auf dem Server vorhanden sind.",
+      "cleanupUpToDate": "Lokaler Cache stimmt bereits mit den Serverdaten überein.",
+      "purged": "Alle lokalen Daten wurden gelöscht."
+    },
+    "app": {
+      "loading": "Wird geladen...",
+      "dropImportTitle": "ZIP-Exporte zum Import ablegen",
+      "dropImportSubtitle": "Modus im Importfenster auswählen und bestätigen"
+    }
+  }
+}

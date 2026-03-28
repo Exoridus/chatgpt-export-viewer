@@ -1,0 +1,135 @@
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+.codeBlock {
+  position: relative;
+  align-self: stretch;
+  overflow: hidden;
+  margin: 0.28rem 0;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 0.9rem;
+  background: rgba(0, 0, 0, 0.25);
+  text-align: left;
+
+  @include light-theme {
+    border-color: rgba(21, 32, 51, 0.12);
+    background: #fff;
+  }
+}
+
+.header {
+  position: absolute;
+  inset: 0.44rem 0.55rem auto 0.8rem;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.lang {
+  position: absolute;
+  top: 0.56rem;
+  left: 0.8rem;
+  z-index: 3;
+  color: $text-subtle;
+  font-size: 0.7rem;
+
+  @include light-theme {
+    color: rgba(21, 32, 51, 0.62);
+  }
+}
+
+.lines {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: $text-subtle;
+  font-size: 0.72rem;
+
+  @include light-theme {
+    color: rgba(21, 32, 51, 0.72);
+  }
+}
+
+.toolbar {
+  position: absolute;
+  top: 0.44rem;
+  right: 0.55rem;
+  z-index: 4;
+  display: inline-flex;
+  gap: 0.3rem;
+}
+
+.toolButton {
+  width: 28px;
+  height: 28px;
+  border-radius: 0.45rem;
+}
+
+.chevron {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+
+  svg {
+    transition: transform 0.2s ease;
+  }
+}
+
+.chevronCollapsed svg {
+  transform: rotate(-90deg);
+}
+
+.preview {
+  position: relative;
+  max-width: 100%;
+  overflow: auto;
+  padding: 2rem 0.9rem 0.9rem;
+}
+
+.preview pre {
+  margin: 0;
+}
+
+.line {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  align-items: start;
+  gap: 0.75rem;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.79rem;
+  line-height: 1.56;
+  white-space: pre;
+}
+
+.lineHit {
+  background: rgba(250, 204, 21, 0.12);
+}
+
+.lineNumber {
+  color: rgba(255, 255, 255, 0.45);
+  text-align: right;
+  user-select: none;
+
+  @include light-theme {
+    color: rgba(21, 32, 51, 0.5);
+  }
+}
+
+.lineContent {
+  overflow-wrap: normal;
+  white-space: pre;
+}
+
+.wrap .lineContent {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

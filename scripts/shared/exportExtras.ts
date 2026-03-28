@@ -12,6 +12,12 @@ import type {
 import type { AssetsIndex } from './slimConvert'
 import { guessMimeByPath } from './slimConvert'
 
+interface AssetDescriptorInfo {
+  pointers: Set<string>
+  createdAt?: number
+  updatedAt?: number
+}
+
 export function extractExtraData(entries: Map<string, Uint8Array>): ExportExtraData {
   return {
     user: readJson<ExportUserProfile>(entries, 'tmp/user.json'),
@@ -30,25 +36,30 @@ export function collectGeneratedAssets(
 ): GeneratedAsset[] {
   const folderName = normalizeUserFolder(userId, entries)
   if (!folderName) return []
-  const pointerMap = buildPointerMap(assetsJson, folderName)
+  const descriptorMap = buildDescriptorMap(assetsJson, folderName)
   const files = new Map<string, GeneratedAsset>()
   entries.forEach((buffer, rawKey) => {
     if (!rawKey || rawKey.endsWith('/')) return
     const relativePath = extractUserPath(rawKey, folderName)
     if (!relativePath) return
     const fileName = relativePath.split('/').pop() ?? relativePath
+    const descriptor = descriptorMap.get(relativePath)
     const next: GeneratedAsset = {
       path: relativePath,
       fileName,
       size: buffer.length,
       mime: guessMimeByPath(relativePath),
-      pointers: pointerMap.get(relativePath) ? Array.from(pointerMap.get(relativePath)!) : undefined,
+      pointers: descriptor ? Array.from(descriptor.pointers) : undefined,
+      createdAt: descriptor?.createdAt,
+      updatedAt: descriptor?.updatedAt,
     }
     const existing = files.get(relativePath)
     if (existing) {
       existing.pointers = mergePointerLists(existing.pointers, next.pointers)
       if (existing.size == null && next.size != null) existing.size = next.size
       if (!existing.mime && next.mime) existing.mime = next.mime
+      existing.createdAt = pickEarlierTimestamp(existing.createdAt, next.createdAt)
+      existing.updatedAt = pickLaterTimestamp(existing.updatedAt, next.updatedAt)
     } else {
       files.set(relativePath, next)
     }
@@ -92,29 +103,47 @@ function extractUserPath(rawKey: string, folderName: string): string | null {
   return suffix
 }
 
-function buildPointerMap(assetsJson: AssetsIndex, folderName: string): Map<string, Set<string>> {
-  const map = new Map<string, Set<string>>()
+function buildDescriptorMap(assetsJson: AssetsIndex, folderName: string): Map<string, AssetDescriptorInfo> {
+  const map = new Map<string, AssetDescriptorInfo>()
   Object.entries(assetsJson).forEach(([pointer, descriptor]) => {
-    const path = resolveAssetPath(descriptor)
-    if (!path) return
-    const rel = extractUserPath(path, folderName)
+    const info = resolveAssetDescriptor(descriptor)
+    if (!info.path) return
+    const rel = extractUserPath(info.path, folderName)
     if (!rel) return
     if (!map.has(rel)) {
-      map.set(rel, new Set())
+      map.set(rel, { pointers: new Set() })
     }
-    map.get(rel)!.add(pointer)
+    const target = map.get(rel)!
+    target.pointers.add(pointer)
+    target.createdAt = pickEarlierTimestamp(target.createdAt, info.createdAt)
+    target.updatedAt = pickLaterTimestamp(target.updatedAt, info.updatedAt)
   })
   return map
 }
 
-function resolveAssetPath(descriptor: unknown): string | null {
-  if (typeof descriptor === 'string') return descriptor
-  if (descriptor && typeof descriptor === 'object') {
-    const data = descriptor as { file_path?: string; download_url?: string }
-    if (typeof data.file_path === 'string') return data.file_path
-    if (typeof data.download_url === 'string') return data.download_url
+function resolveAssetDescriptor(descriptor: unknown): { path: string | null; createdAt?: number; updatedAt?: number } {
+  if (typeof descriptor === 'string') {
+    return { path: descriptor }
   }
-  return null
+  if (descriptor && typeof descriptor === 'object') {
+    const data = descriptor as {
+      file_path?: string
+      download_url?: string
+      created_at?: unknown
+      create_time?: unknown
+      creation_time?: unknown
+      updated_at?: unknown
+      update_time?: unknown
+      modified_at?: unknown
+      last_modified?: unknown
+      mtime?: unknown
+    }
+    const path = typeof data.file_path === 'string' ? data.file_path : typeof data.download_url === 'string' ? data.download_url : null
+    const createdAt = normalizeTimestamp(data.created_at ?? data.create_time ?? data.creation_time)
+    const updatedAt = normalizeTimestamp(data.updated_at ?? data.update_time ?? data.modified_at ?? data.last_modified ?? data.mtime)
+    return { path, createdAt: createdAt ?? undefined, updatedAt: updatedAt ?? undefined }
+  }
+  return { path: null }
 }
 
 function mergePointerLists(a?: string[], b?: string[]): string[] | undefined {
@@ -123,4 +152,40 @@ function mergePointerLists(a?: string[], b?: string[]): string[] | undefined {
   a?.forEach((item) => set.add(item))
   b?.forEach((item) => set.add(item))
   return Array.from(set)
+}
+
+function pickEarlierTimestamp(a: unknown, b: unknown): number | undefined {
+  const left = normalizeTimestamp(a)
+  const right = normalizeTimestamp(b)
+  if (left === null) {return right ?? undefined}
+  if (right === null) {return left}
+  return Math.min(left, right)
+}
+
+function pickLaterTimestamp(a: unknown, b: unknown): number | undefined {
+  const left = normalizeTimestamp(a)
+  const right = normalizeTimestamp(b)
+  if (left === null) {return right ?? undefined}
+  if (right === null) {return left}
+  return Math.max(left, right)
+}
+
+function normalizeTimestamp(value: unknown): number | null {
+  if (value === null || value === undefined) {return null}
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value < 10_000_000_000 ? value * 1000 : value
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) {return null}
+    const numeric = Number(trimmed)
+    if (Number.isFinite(numeric)) {
+      return numeric < 10_000_000_000 ? numeric * 1000 : numeric
+    }
+    const parsed = Date.parse(trimmed)
+    if (Number.isFinite(parsed)) {
+      return parsed
+    }
+  }
+  return null
 }

@@ -5,20 +5,39 @@ export function mergeSummaries(
   local: ConversationSummary[],
   pinnedIds?: Set<string>,
 ): ConversationSummary[] {
-  const serverMap = new Map(server.map((summary) => [summary.id, summary]))
-  const localMap = new Map(local.map((summary) => [summary.id, summary]))
-  const ids = new Set<string>([...serverMap.keys(), ...localMap.keys()])
-  const merged: ConversationSummary[] = []
-  ids.forEach((id) => {
-    const serverEntry = serverMap.get(id)
-    const localEntry = localMap.get(id)
-    const winner = chooseWinner(serverEntry, localEntry)
-    if (winner) {
-      const pinnedSource = Boolean(pinnedIds?.has(winner.id) || localEntry?.pinned || winner.pinned)
-      merged.push({ ...winner, pinned: pinnedSource })
+  if (server.length === 0 && local.length === 0) {return []}
+  
+  const mergedMap = new Map<string, ConversationSummary>()
+
+  // Process server entries first
+  for (let i = 0; i < server.length; i++) {
+    const entry = server[i]
+    mergedMap.set(entry.id, entry)
+  }
+
+  // Process local entries and choose winner
+  for (let i = 0; i < local.length; i++) {
+    const localEntry = local[i]
+    const serverEntry = mergedMap.get(localEntry.id)
+    
+    if (shouldUseLocal(serverEntry, localEntry)) {
+      mergedMap.set(localEntry.id, localEntry)
     }
-  })
-  return sortSummaries(merged)
+  }
+
+  const mergedList = Array.from(mergedMap.values())
+  
+  // Apply pinned status
+  if (pinnedIds && pinnedIds.size > 0) {
+    for (let i = 0; i < mergedList.length; i++) {
+      const entry = mergedList[i]
+      if (pinnedIds.has(entry.id)) {
+        entry.pinned = true
+      }
+    }
+  }
+
+  return sortSummaries(mergedList)
 }
 
 export function shouldUseLocal(serverEntry?: ConversationSummary, localEntry?: ConversationSummary): boolean {
@@ -30,19 +49,13 @@ export function shouldUseLocal(serverEntry?: ConversationSummary, localEntry?: C
   return true
 }
 
-function chooseWinner(serverEntry?: ConversationSummary, localEntry?: ConversationSummary): ConversationSummary | undefined {
-  if (!serverEntry && !localEntry) {return undefined}
-  if (shouldUseLocal(serverEntry, localEntry)) {
-    return localEntry
-  }
-  return serverEntry
-}
-
 function sortSummaries(entries: ConversationSummary[]): ConversationSummary[] {
-  const pinned = entries.filter((entry) => entry.pinned)
-  const others = entries.filter((entry) => !entry.pinned)
-  const sorter = (a: ConversationSummary, b: ConversationSummary) => b.last_message_time - a.last_message_time
-  pinned.sort(sorter)
-  others.sort(sorter)
-  return [...pinned, ...others]
+  return entries.sort((a, b) => {
+    // Both pinned or both unpinned -> sort by time
+    if (!!a.pinned === !!b.pinned) {
+      return b.last_message_time - a.last_message_time
+    }
+    // a is pinned, b is not -> a comes first
+    return a.pinned ? -1 : 1
+  })
 }

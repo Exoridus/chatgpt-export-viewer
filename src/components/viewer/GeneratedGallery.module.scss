@@ -1,0 +1,135 @@
+@use '../../styles/tokens' as *;
+@use '../../styles/mixins' as *;
+
+.viewport {
+  flex: 1;
+  min-height: 0;
+}
+
+.row {
+  display: flex;
+}
+
+.card {
+  display: flex;
+  min-height: 230px;
+  flex-direction: column;
+  gap: 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 1rem;
+  background: $panel-soft;
+  padding: 0.7rem;
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 230px;
+
+  @include light-theme {
+    border-color: rgba(21, 32, 51, 0.08);
+    background: rgba(21, 32, 51, 0.02);
+  }
+}
+
+.cardClickable {
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+
+  @include light-theme {
+    &:hover {
+      border-color: rgba(21, 32, 51, 0.16);
+      background: rgba(21, 32, 51, 0.04);
+    }
+  }
+}
+
+.cardPreview {
+  display: flex;
+  min-height: 170px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+
+  img,
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.cardFooter {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 0.45rem;
+
+  @include light-theme {
+    border-top-color: rgba(21, 32, 51, 0.08);
+  }
+}
+
+.cardTitle {
+  min-width: 0;
+}
+
+.cardName {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.cardTime {
+  overflow: hidden;
+  color: $text-subtle;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  @include light-theme {
+    color: rgba(21, 32, 51, 0.68);
+  }
+}
+
+.cardSize {
+  color: $text-subtle;
+  font-feature-settings: 'tnum';
+
+  @include light-theme {
+    color: rgba(21, 32, 51, 0.68);
+  }
+}
+
+.filePreview {
+  display: flex;
+  min-height: 170px;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 0.65rem;
+  color: rgba(255, 255, 255, 0.78);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+
+  @include light-theme {
+    border-color: rgba(21, 32, 51, 0.14);
+    color: rgba(21, 32, 51, 0.7);
+  }
+}
